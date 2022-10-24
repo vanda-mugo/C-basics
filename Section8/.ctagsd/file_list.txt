@@ -1,0 +1,10 @@
+C:\Users\25479\Documents\cppProject\Section8\ChallengeSolution\main.cpp
+C:\Users\25479\Documents\cppProject\Section8\LogicalOperators\main.cpp
+C:\Users\25479\Documents\cppProject\Section8\RelationalOperators\main.cpp
+C:\Users\25479\Documents\cppProject\Section8\EqualityOperators\main.cpp
+C:\Users\25479\Documents\cppProject\Section8\MixedExpressions\main.cpp
+C:\Users\25479\Documents\cppProject\Section8\Challenge\main.cpp
+C:\Users\25479\Documents\cppProject\Section8\Euros\main.cpp
+C:\Users\25479\Documents\cppProject\Section8\ArithmeticOperators\main.cpp
+C:\Users\25479\Documents\cppProject\Section8\IncrementDecrementOperators\main.cpp
+C:\Users\25479\Documents\cppProject\Section8\AssignmentOperator\main.cpp

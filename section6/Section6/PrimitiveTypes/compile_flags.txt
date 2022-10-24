@@ -1,0 +1,4 @@
+-IC:\Users\25479\Documents\cppProject\section6\Section6\PrimitiveTypes
+-std=c++14
+-target
+x86_64-w64-mingw32

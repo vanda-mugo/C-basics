@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CodeLite_Workspace Name="section4" Database="" Version="10000">
+  <Project Name="section4" Path="section4/section4.project" Active="No"/>
+  <Project Name="varables_constants" Path="varables_constants/varables_constants.project" Active="Yes"/>
+  <BuildMatrix>
+    <WorkspaceConfiguration Name="Debug">
+      <Environment/>
+      <Project Name="section4.2" ConfigName="Debug"/>
+      <Project Name="section4" ConfigName="Debug"/>
+      <Project Name="varables_constants" ConfigName="Debug"/>
+    </WorkspaceConfiguration>
+    <WorkspaceConfiguration Name="Release">
+      <Environment/>
+      <Project Name="section4.2" ConfigName="Release"/>
+      <Project Name="section4" ConfigName="Release"/>
+      <Project Name="varables_constants" ConfigName="Release"/>
+    </WorkspaceConfiguration>
+  </BuildMatrix>
+</CodeLite_Workspace>
