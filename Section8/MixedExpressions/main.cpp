@@ -16,7 +16,8 @@ using namespace std;
 
 int main() {
     int total {};
-    int num1 {}, num2 {}, num3 {};
+    int num1 {}, num2 {}, num3 {};// note by all this variables are initialised to zero
+    // also note that there is a difference between initialisation and assignment 
     const int count {3};
     
     cout << "Enter 3 integers separated by spaces: ";
@@ -24,7 +25,7 @@ int main() {
     
     total = num1 + num2 + num3;
     
-    double average {0.0};
+    double average {0.0}; // initialised to 0.0 for the double value
     
     average = static_cast<double>(total) / count;
    // average = (double)total/count;  Old-Style
