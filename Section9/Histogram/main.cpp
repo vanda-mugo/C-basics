@@ -1,7 +1,7 @@
 // Section 9
 // Nested Loops - Histogram
 
-#include <iostream>
+  #include <iostream>
 #include <vector>
 
 using namespace std;

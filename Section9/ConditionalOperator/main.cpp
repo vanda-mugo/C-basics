@@ -15,7 +15,9 @@ int main() {
 //        cout << num << " is even" << endl;
 //    else    
 //        cout << num << " is odd" << endl;
-//        
+//     
+// note by the if else statement seen above is equivalent to the use  of the conditional operator as used just above 
+   
 //    cout << num << " is " << ( (num %2 ==0) ? "even" : "odd"  ) << endl;
 
     int num1{}, num2{};
@@ -26,7 +28,8 @@ int main() {
     if (num1 != num2) {
         cout << "Largest: " << ( (num1 > num2) ? num1 : num2 ) << endl;
         cout << "Smallest: " << ( (num1 < num2) ? num1 : num2) << endl;
-        
+     
+    // in the case that num1 and num2 are of the same value
     } else {
         cout << "The numbers are the same" << endl;
     }

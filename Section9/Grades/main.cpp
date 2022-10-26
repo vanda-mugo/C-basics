@@ -30,8 +30,12 @@ int main() {
         else 
             letter_grade = 'F';
             
-        cout << "Your grade is : " << letter_grade << endl;
-        if (letter_grade == 'F')
+        cout << "Your grade is : " << letter_grade << endl; // note by that this output is in such a way that its within the main if statement 
+        // this means that so long as this initial if statement was evaluated to true then this output must and will run 
+        
+        if (letter_grade == 'F') // note that this is another nested if statement 
+        // basically the main if statement has a block of code that contains all the rest of nested if statements 
+        
             cout << "Sorry, you must repeat the class" << endl;
         else 
             cout << "Congrats!" << endl;

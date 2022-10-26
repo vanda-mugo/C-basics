@@ -1,0 +1,5 @@
+C:\Users\25479\Documents\cppProject\Section10\ChallengeSolution\main.cpp
+C:\Users\25479\Documents\cppProject\Section10\Challenge\main.cpp
+C:\Users\25479\Documents\cppProject\Section10\CharFunctions\main.cpp
+C:\Users\25479\Documents\cppProject\Section10\CPPStrings\main.cpp
+C:\Users\25479\Documents\cppProject\Section10\CStyleStrings\main.cpp

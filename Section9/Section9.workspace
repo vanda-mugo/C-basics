@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CodeLite_Workspace Name="Section9" Database="" Version="10.0.0">
-  <Project Name="IfStatement" Path="IfStatement/IfStatement.project" Active="Yes"/>
+  <Project Name="IfStatement" Path="IfStatement/IfStatement.project" Active="No"/>
   <Project Name="IfElseStatement" Path="IfElseStatement/IfElseStatement.project" Active="No"/>
   <Project Name="Grades" Path="Grades/Grades.project" Active="No"/>
   <Project Name="Shipping" Path="Shipping/Shipping.project" Active="No"/>
@@ -15,8 +15,9 @@
   <Project Name="Histogram" Path="Histogram/Histogram.project" Active="No"/>
   <Project Name="Challenge" Path="Challenge/Challenge.project" Active="No"/>
   <Project Name="ChallengeSolution" Path="ChallengeSolution/ChallengeSolution.project" Active="No"/>
+  <Project Name="Personal_tests" Path="Personal_tests/Personal_tests.project" Active="Yes"/>
   <BuildMatrix>
-    <WorkspaceConfiguration Name="Debug" Selected="yes">
+    <WorkspaceConfiguration Name="Debug">
       <Environment/>
       <Project Name="IfStatement" ConfigName="Debug"/>
       <Project Name="IfElseStatement" ConfigName="Debug"/>
@@ -33,8 +34,9 @@
       <Project Name="Histogram" ConfigName="Debug"/>
       <Project Name="Challenge" ConfigName="Debug"/>
       <Project Name="ChallengeSolution" ConfigName="Debug"/>
+      <Project Name="Personal_tests" ConfigName="Debug"/>
     </WorkspaceConfiguration>
-    <WorkspaceConfiguration Name="Release" Selected="yes">
+    <WorkspaceConfiguration Name="Release">
       <Environment/>
       <Project Name="IfStatement" ConfigName="Release"/>
       <Project Name="IfElseStatement" ConfigName="Release"/>
@@ -51,6 +53,7 @@
       <Project Name="Histogram" ConfigName="Release"/>
       <Project Name="Challenge" ConfigName="Release"/>
       <Project Name="ChallengeSolution" ConfigName="Release"/>
+      <Project Name="Personal_tests" ConfigName="Release"/>
     </WorkspaceConfiguration>
   </BuildMatrix>
 </CodeLite_Workspace>

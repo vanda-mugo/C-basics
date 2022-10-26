@@ -35,9 +35,10 @@ int main() {
             cout << "Hmm, you should strive for a better grade. All you need is 60-69" << endl;
             break;
         case 'f':
-        case 'F':
+        case 'F':// this here is a block introduced for the F case
         {
-            char confirm {};
+            char confirm {};// a variable ,because of initialisation of this variables within this case F, the curly brackets are necessary 
+            //if not declaring variables then the curlies are not necessary
             cout << "Are you sure (Y/N)? ";
             cin >> confirm;
             if (confirm == 'y' || confirm == 'Y') 

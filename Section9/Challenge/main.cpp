@@ -69,6 +69,35 @@ using namespace std;
 int main() {
     
     cout << "Hello world" << endl;
+//    int number {};
+//    cout<<"enter a number between 0 - 10";
+//    cin>>number;
+//    
+    
+    // this will be an if statement to practice the if statements 
+    int num;
+    const int min {10};
+    const int max {100};
+    cout<<"enter a number between "<<min<<"and"<<max<<":";
+    cin>>num;
+    // check out the use of the block in this if statement 
+    if (num >= min) {
+        cout<<"\n =========== if statement 1 =========="<<endl;
+        cout<<num<<"is greater than"<<min<<endl;
+        
+        int diff {num - min};//note by that this variable is only visible from within this blocks namespace 
+        cout<<num<<"is greater than"<<min<<"by"<<diff<<endl;
+       
+    }
+    
+    if (num<=max) {
+        cout<<"\n =========== if statement 1 =========="<<endl;
+        cout<<num<<"is less than or equal to"<<max<<endl;
+        
+        int diff {max-num}; // this is a different variable than the one declared in the earlier if statement 
+         cout<<num<<"is less than"<<max<<"by"<<diff<<endl;
+        
+    }
     return 0;
 }
 
