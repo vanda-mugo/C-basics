@@ -48,12 +48,13 @@ int main() {
     cout << "\nEncrypting message..." << endl;
     
     for (char c: secret_message) {
-        size_t position = alphabet.find(c);
-        if (position != string::npos) {
-            char new_char {  key.at(position) };
-            encrypted_message += new_char;
+        size_t position = alphabet.find(c);// range based for loop in which char c represents each character in the secret message
+        if (position != string::npos) // this means that the character was found 
+            {
+            char new_char {  key.at(position) }; // new variable that will hold the character at the said key
+            encrypted_message += new_char;// adding the character from the key to the encrypted message 
         } else {
-            encrypted_message += c;
+            encrypted_message += c;// just add the character as is since its not in the alphabet string 
         }
     }
     
@@ -61,7 +62,7 @@ int main() {
     
     string decrypted_message {};
     cout << "\nDecrypting message..." << endl;
-    
+    // basically the logic follows as expected 
     for (char c: encrypted_message) {
         size_t position = key.find(c);
         if (position != string::npos) {

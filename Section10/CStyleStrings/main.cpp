@@ -14,7 +14,7 @@ int main()
     char full_name[50] {};
     char temp[50] {};
     
-    //cout << first_name;     // Will likely display garbage! this is because this is still very not initialised and therefore cannot predict what is stored in this part of memory
+    //(cout << first_name;     // Will likely display garbage! this is because this is still very not initialised and therefore cannot predict what is stored in this part of memory
 
     cout << "Please enter your first name: ";
     cin >> first_name;
