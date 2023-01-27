@@ -1,8 +1,8 @@
 .PHONY: clean All
 
 All:
-	@echo "----------Building project:[ virtual_methods - Debug ]----------"
-	@cd "Section15" && "$(MAKE)" -f  "virtual_methods.mk"
+	@echo "----------Building project:[ c++_Class_Training - Debug ]----------"
+	@cd "C:\Users\25479\Documents\Search Data\c++ training\c++_Class_Training\c++_Class_Training" && "$(MAKE)" -f  "c++_Class_Training.mk"
 clean:
-	@echo "----------Cleaning project:[ virtual_methods - Debug ]----------"
-	@cd "Section15" && "$(MAKE)" -f  "virtual_methods.mk" clean
+	@echo "----------Cleaning project:[ c++_Class_Training - Debug ]----------"
+	@cd "C:\Users\25479\Documents\Search Data\c++ training\c++_Class_Training\c++_Class_Training" && "$(MAKE)" -f  "c++_Class_Training.mk" clean

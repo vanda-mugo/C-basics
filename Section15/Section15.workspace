@@ -8,8 +8,10 @@
   <Project Name="Challenge" Path="Challenge/Challenge.project" Active="No"/>
   <Project Name="ChallengeSolution" Path="ChallengeSolution/ChallengeSolution.project" Active="No"/>
   <Project Name="BaseClassInitialization" Path="BaseClassInitialization/BaseClassInitialization.project" Active="No"/>
-  <Project Name="virtual_methods" Path="Section15/Section15.project" Active="Yes"/>
-  <Project Name="c++_Class_Training" Path="../../Search Data/c++ training/c++_Class_Training/c++_Class_Training/c++_Class_Training.project"/>
+  <Project Name="virtual_methods" Path="Section15/Section15.project" Active="No"/>
+  <Project Name="c++_Class_Training" Path="../../Search Data/c++ training/c++_Class_Training/c++_Class_Training/c++_Class_Training.project" Active="No"/>
+  <Project Name="virtualDestructors" Path="virtualDestructors/virtualDestructors.project" Active="No"/>
+  <Project Name="move_constructor" Path="move_constructor/move_constructor.project" Active="Yes"/>
   <BuildMatrix>
     <WorkspaceConfiguration Name="Debug">
       <Environment/>
@@ -23,6 +25,8 @@
       <Project Name="ChallengeSolution" ConfigName="Debug"/>
       <Project Name="virtual_methods" ConfigName="Debug"/>
       <Project Name="c++_Class_Training" ConfigName="Debug"/>
+      <Project Name="virtualDestructors" ConfigName="Debug"/>
+      <Project Name="move_constructor" ConfigName="Debug"/>
     </WorkspaceConfiguration>
     <WorkspaceConfiguration Name="Release">
       <Environment/>
@@ -36,6 +40,8 @@
       <Project Name="ChallengeSolution" ConfigName="Release"/>
       <Project Name="virtual_methods" ConfigName="Release"/>
       <Project Name="c++_Class_Training" ConfigName="Release"/>
+      <Project Name="virtualDestructors" ConfigName="Release"/>
+      <Project Name="move_constructor" ConfigName="Release"/>
     </WorkspaceConfiguration>
   </BuildMatrix>
 </CodeLite_Workspace>
