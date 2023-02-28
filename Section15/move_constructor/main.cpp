@@ -31,6 +31,9 @@ public:
 	// Copy Constructor to delegated
 	// Copy constructor
 	Move(const Move& source)
+    // note by here const is for the source which in this case is an L value and shouldnt be changed 
+    // in the constructor initialisation list what is happening is that the delegation of the move overloaded costructor is occuring and what this does is that 
+    //the overloaded move constructor is called and the value for which is expected is placed as source which in this case is the l value being copied from 
 		: Move{ *source.data }
 	{
 
@@ -76,3 +79,64 @@ int main()
 	vec.push_back(Move{ 20 });
 	return 0;
 }
+
+
+
+
+//        
+//        std::string x[10];
+//        int i = 0;
+//        std::string fileLine;
+//        while(!accountStream.eof())
+//        {
+//            std::getline(accountStream, fileLine);
+//            x[i++] = fileLine;
+//        }
+//        
+//        className = x[1];
+//        accountName = x[2];
+//        std::stringstream(x[3]) >>age;
+//        std::stringstream(x[4]) >>balance;
+//        
+//        Account accountObj{accountName , balance, age};
+//        accountObj.printDetails();
+        
+//        if(!accountStream)
+//        {
+//            std::cerr<<"cannot open the indicated file  "<<std::endl;
+//            exit(-1);
+//        }
+//        
+//        else
+//        {
+//            //file stream to read
+//            Account accountObj;
+//            while( std::getline(accountStream , fileLine))
+//            {
+//                std::cout<<fileLine<<std::endl;
+//                
+//            }
+//        }
+
+
+
+        //accountStream.close();
+        //        if(accountStream.is_open() )
+        //        {
+        //            std::cout<<"stream could not close "<<std::endl;
+        //            // this stream could be called in the destructor 
+        //        }
+                //std::ofstream 
+        //explanation of the above 
+        // note that in this case the the & fileName which is a reference to a constant variable of type std::string. note by that in this case filename is an alias of whatever
+        // l value variable that will be passed in this function 
+        //file stream for write 
+        // an ofstream object to write to class 
+        //accountStream.write((char*)this , sizeof(this));
+        
+                
+        
+        
+
+
+

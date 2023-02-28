@@ -14,9 +14,20 @@ private:
 public:
 
     // the above are public member methods therefore can be accessed from outside the class 
-    std::string get_name() { return name; }
-    int get_health() { return health; }
-    int get_xp() {return xp; } 
+    std::string get_name()
+        {
+            return name;
+        }
+    int get_health()    
+        {
+            return health;
+        }
+    int get_xp()
+        {
+            return xp;
+        } 
+        
+    //  3 args constructor 
     Player(std::string name_val ="None", int health_val = 0, int xp_val = 0);
     // Copy constructor
     // note by this is a prototype for the copy constructor 
@@ -28,7 +39,8 @@ public:
 
 // note by this is the player constructor 
 Player::Player(std::string name_val, int health_val, int xp_val) 
-    : name{name_val}, health{health_val}, xp{xp_val} {
+    : name{name_val}, health{health_val}, xp{xp_val}
+ {
             cout << "Three-args constructor for " + name << endl;
 }
 
@@ -38,16 +50,16 @@ Player::Player(std::string name_val, int health_val, int xp_val)
 
 
 Player::Player(const Player &source)
-// we use const in this case to avoid  altering the actual source
-    
+    // we use const in this case to avoid  altering the actual source
     // there are two ways by which this can be done , one is specified just below
    // : name(source.name), health(source.health), xp{source.xp} {
       
-// this is delegating the construction to the 3 args constructor 
-//notice how a constructor is called in this case using the arguments you would want to include with the new constructor  
-       : Player {source.name, source.health, source.xp}  {
-        cout << "Copy constructor - made copy of: " << source.name << endl; 
-}
+    // this is delegating the construction to the 3 args constructor 
+    //notice how a constructor is called in this case using the arguments you would want to include with the new constructor  
+       : Player {source.name, source.health, source.xp}  
+       {
+            cout << "Copy constructor - made copy of: " << source.name << endl; 
+        }
 
 // this is a function that expects a player by value
 // the value p implies pass by value since the player object that will be input into this will be a copy that is stored into the p variable that is local to the function 

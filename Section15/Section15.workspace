@@ -11,7 +11,15 @@
   <Project Name="virtual_methods" Path="Section15/Section15.project" Active="No"/>
   <Project Name="c++_Class_Training" Path="../../Search Data/c++ training/c++_Class_Training/c++_Class_Training/c++_Class_Training.project" Active="No"/>
   <Project Name="virtualDestructors" Path="virtualDestructors/virtualDestructors.project" Active="No"/>
-  <Project Name="move_constructor" Path="move_constructor/move_constructor.project" Active="Yes"/>
+  <Project Name="move_constructor" Path="move_constructor/move_constructor.project" Active="No"/>
+  <Project Name="read_write" Path="read_write/read_write.project" Active="No"/>
+  <Project Name="exampleRead" Path="exampleRead/exampleRead.project" Active="No"/>
+  <Project Name="geeksExample" Path="geeksExample/geeksExample.project" Active="No"/>
+  <Project Name="streamExample" Path="streamExample/streamExample.project" Active="No"/>
+  <Project Name="train" Path="train/train.project" Active="No"/>
+  <Project Name="Account" Path="Account/Account.project" Active="Yes"/>
+  <Project Name="Account2" Path="Account2/Account2.project" Active="No"/>
+  <Project Name="template" Path="template/template.project" Active="No"/>
   <BuildMatrix>
     <WorkspaceConfiguration Name="Debug">
       <Environment/>
@@ -27,6 +35,14 @@
       <Project Name="c++_Class_Training" ConfigName="Debug"/>
       <Project Name="virtualDestructors" ConfigName="Debug"/>
       <Project Name="move_constructor" ConfigName="Debug"/>
+      <Project Name="read_write" ConfigName="Debug"/>
+      <Project Name="exampleRead" ConfigName="Debug"/>
+      <Project Name="geeksExample" ConfigName="Debug"/>
+      <Project Name="streamExample" ConfigName="Debug"/>
+      <Project Name="train" ConfigName="Debug"/>
+      <Project Name="Account" ConfigName="Debug"/>
+      <Project Name="Account2" ConfigName="Debug"/>
+      <Project Name="template" ConfigName="Debug"/>
     </WorkspaceConfiguration>
     <WorkspaceConfiguration Name="Release">
       <Environment/>
@@ -42,6 +58,14 @@
       <Project Name="c++_Class_Training" ConfigName="Release"/>
       <Project Name="virtualDestructors" ConfigName="Release"/>
       <Project Name="move_constructor" ConfigName="Release"/>
+      <Project Name="read_write" ConfigName="Release"/>
+      <Project Name="exampleRead" ConfigName="Release"/>
+      <Project Name="geeksExample" ConfigName="Release"/>
+      <Project Name="streamExample" ConfigName="Release"/>
+      <Project Name="train" ConfigName="Release"/>
+      <Project Name="Account" ConfigName="Release"/>
+      <Project Name="Account2" ConfigName="Release"/>
+      <Project Name="template" ConfigName="Release"/>
     </WorkspaceConfiguration>
   </BuildMatrix>
 </CodeLite_Workspace>

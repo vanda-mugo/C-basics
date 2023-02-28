@@ -4,13 +4,14 @@
 
 // No-args constructor
 Mystring::Mystring() 
-    : str{nullptr} {
+    : str{nullptr}// the pointer that is str is assigned a null value
+ {
     str = new char[1];
     *str = '\0';
 }
 
 // Overloaded constructor
-Mystring::Mystring(const char *s) 
+Mystring::Mystring(const char *s) //argument is a character pointer 
     : str {nullptr} {
         if (s==nullptr) {
             str = new char[1];
@@ -34,7 +35,13 @@ Mystring::~Mystring() {
 }
 
 // Copy assignment
-Mystring &Mystring::operator=(const Mystring &rhs){
+Mystring &Mystring::operator=(const Mystring &rhs)
+// note by that the copy overloaded assignment comes into action when one class object that already exist is assigned the value of another classs objet that also exist
+// rhs refers to the class object on right side and the one on the left is the one which a new value is assigned to 
+
+// lhs.operator=(rhs);
+// its ocnstant so that the rhs is not changed 
+{
     std::cout<<"copy assignment"<<std::endl;
     if(this == &rhs)// comparing to check if we are self copying . that is if the pointer or address this is the same as the &rhs address then dereferenced this is returned 
         return *this;
@@ -48,6 +55,7 @@ Mystring &Mystring::operator=(const Mystring &rhs){
         //note  by now that in this line the value of str is changed to hold the the address of a dynamic memory array of type character 
         // therefore the content of the str value is a memory location rather not the content represented by this string character 
         std::strcpy(this ->str , rhs.str);// here we have also used member of the pointer operator which dereferences this and applies the str dot object 
+        // can also be      std::Strcpy(str, rhs.str);
         // in this line the content value of the rhs.str  which is the string is copied to the str memory address where there is a character array in the heap that can accomodate the value and lenght 
         // of the string being passed on to it 
         //very important to note that the rhs in the copy assignment operator is an L value and therefore the rhs.str refers to the str pointer for the object passed as teh rhs

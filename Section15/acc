@@ -1,0 +1,2171 @@
+#include "Acc.h"
+#include <vector>
+#include <limits>
+#include <algorithm>
+#include <cmath>
+//using namespace helpers;
+
+
+
+
+static const double PI = std::atan(1.0) * 4;
+
+inline double deg2rad(double deg) 
+{
+  // Changes degrees to radians
+  return deg * PI / 180;
+}
+
+// uses the std::max and std::min
+inline double saturate(double val, double min_val, double max_val) 
+{
+  // Cut value to max or min if it is out of range
+  // in this case the range is max_val >= val >=min_val
+  
+  // in this case if val is greater than the max_val the output will be max_val
+  //if val is between max and min output will be val since it will be smaller than max_val
+  val = std::min(val, max_val);
+  
+  // if val is less than the min_val the output val will be the min_val
+  // if val falls between max_val and min_val means val will be greater than min_val hence it will be output
+  val = std::max(val, min_val);
+  return val;
+}
+
+inline double speedControl(double desiredVelocity, double actualVelocity) 
+{
+  double gain{ 1 };
+  double steer{ (desiredVelocity - actualVelocity)*gain };
+  return saturate(steer, 0, 1);
+}
+
+inline double steerControl(double linePositionY) 
+{
+    // used for 3rd point of detected line with spacing 0.2m
+  double gain{ 500 };
+  return deg2rad(linePositionY*gain);
+}
+
+
+inline double rateLimiter( double inputValue)
+{
+    double rate{0};
+    double outputValue{0};
+    double risingSlewRate = 150000;
+    double fallingSlewRate = -(150000);
+    for( double i{0} ; i< std::numeric_limits<double>::infinity() ; i++ )
+    {
+        rate = (inputValue - outputValue);
+        if(rate > risingSlewRate)
+        {
+            rate = risingSlewRate;
+        }
+        else if( rate < fallingSlewRate)
+        {
+            rate = fallingSlewRate;
+        }
+        
+    }
+}
+
+//this here is a constructor defined outside the Acc class 
+// the class in this case is defined in the helper file 
+Acc::Acc()
+{
+   
+}
+
+Acc::Acc(int maxDetectableObjectsTis)
+    : maxDetectableObjects {maxDetectableObjectsTis}
+ {
+        std::vector<double> empty(maxDetectableObjects);
+    }
+    
+// destructor defined outside class has to be prefixed with class name and scope resolution operator
+Acc::~Acc()
+{
+    
+}
+
+
+//NOTE BY: the above is method implementation outside the class Acc
+
+void Acc::ACCstep(const double *yawRateIn,  const double *velocityIn, const double *throttleIn, const double *brakeIn, const std::vector<double> TISWideRangeIn , 
+    const std::vector<double> TISWideThetaIn, const std::vector<double> TISWideDopplerVelocityIn,const std::vector<double> TISLongRangeIn, const std::vector<double> TISLongThetaIn, 
+    const std::vector<double> TISLongDopplerVelocityIn, const double HWTIn, const double StandstillDistanceIn , double indicatorFlagIn , double EgoSystemIn , double GuiswitchIn )
+    {
+        double indicatorFlagInput = indicatorFlagIn;
+        double yawRate = *yawRateIn; // this is a pointer 
+        double velocity = *velocityIn;
+        double throttleInput = *throttleIn;
+        double brake = *brakeIn;
+        double egoSystemInput = EgoSystemIn;
+        double guiSwitchInput = GuiswitchIn;
+        std::vector<double> TISWideRange = TISWideRangeIn;
+        std::vector<double> TISWideTheta = TISWideThetaIn;
+        std::vector<double> TISWideDopplerVelocity = TISWideDopplerVelocityIn;
+        std::vector<double> TISLongRange = TISLongRangeIn;
+        std::vector<double> TISLongTheta = TISLongThetaIn;
+        std::vector<double> TISLongDopplerVelocity = TISLongDopplerVelocityIn;
+        double HeadWayTime = HWTIn;
+        double StandstillDistance =StandstillDistanceIn;
+        std::vector<double> HeadWayTimeVector (maxDetectableObjects,1);
+        std::vector <double> TISLongHeadWayTimeStraight(maxDetectableObjects);
+        std::vector <double> TISLongHeadWayTimeBend(maxDetectableObjects);
+        std::vector  <double> TISlongLeadVelocity(maxDetectableObjects); //TIS1 Lead Velocity
+        std::vector <double> TISLongSafeDistance(maxDetectableObjects);  // TIS1 Safe_distance [m]
+        std::vector <double> TisLongLeadDistance(maxDetectableObjects); // TIS1 Lead distance [m]
+        std::vector <double> TISWideSafeDistance(maxDetectableObjects);
+        std::vector <double> TISWideLeadDistance(maxDetectableObjects);
+        //std::vector <double> TISWideLeadDopplerVelocity(maxDetectableObjects);
+        double TISWideLeadDopplerVelocity{ 0 };
+        std::vector <double> TISLongLeadDopplerVelocity(maxDetectableObjects);
+        double TISWideLeadTheta{0};
+        double TISWideLeadLambda{0};
+        double TISWideLeadRange{0};
+        std::vector <double> TISWideHeadWayTimeStraight(maxDetectableObjects);
+        double TISLongLeadRange{0};
+        double TISLongLeadTheta{0};
+        double TISLongLeadLambda{0};
+        double TISlongLeadDopplerVelocity{0};
+        std::vector <double> HWTLongFlagOutput(maxDetectableObjects);
+        std::vector <double> HWTWideFlagOutput(maxDetectableObjects);
+        std::vector <double> TISWideLeadVelocity(maxDetectableObjects);
+        std::vector <double> TISWideAbsBrakeOutput(maxDetectableObjects);
+        double TimeStep = 1/20;
+        std::vector <double> TISWideHeadWayTimeBend(maxDetectableObjects);
+        std::vector <double> TISWideThrottleOutput(maxDetectableObjects);
+        std::vector <double> TisWideHeadWayTimeCombined(maxDetectableObjects);
+        std::vector <double> TisLongHeadWayTimeCombined(maxDetectableObjects);
+        std::vector <double> TISLongBrakeOutput(maxDetectableObjects);
+        std::vector <double> TISLongThrottleOutput(maxDetectableObjects);
+        
+        std::vector <double> SensorThrottleOutput(maxDetectableObjects);
+        std::vector <double> SensorBrakeOutput(maxDetectableObjects);
+        std::vector <double> SensorAccFlagOutput(maxDetectableObjects);
+        std::vector <double> SensorHWTOutput(maxDetectableObjects);
+        std::vector <double> SensorLeadCarVelocityOutput(maxDetectableObjects);
+        
+        // limitations 1 
+         std::vector <double> LimitationThrottleOutput(maxDetectableObjects);
+         std::vector <double> LimitationAccFlagOutput(maxDetectableObjects);
+         std::vector <double> LimitationLeadCarVelocityOutput(maxDetectableObjects);
+         std::vector <double> LimitationBrakePressureOutput(maxDetectableObjects);
+         std::vector <double> LimitationHWTOutput(maxDetectableObjects);
+        
+        //limitation2
+        std::vector <double> limitationTwoThrottleOutput(maxDetectableObjects);
+        std::vector <double> limitationTwoBrakePressureOutput(maxDetectableObjects);
+        std::vector <double> limitationTwoHWTOutput(maxDetectableObjects);
+        std::vector <double> limitationTwoACCFlagOutput(maxDetectableObjects);
+        std::vector <double> limitationTwoLeadCarVelocityOutput(maxDetectableObjects);
+
+         double condLimitationTwo{0};
+         double orBlockLimitationTwo{0};
+        // put consideration for the index
+        
+        double laneWidth{3.5};
+        double partialBraking{0.4}; // to get back to this in Bar . will confirm this 
+        // used within this functions 
+        std::vector<double> TISWideDistance(maxDetectableObjects, 150 );
+        std::vector<double> TISWideLambda(maxDetectableObjects);       
+        std::vector<double> TISLongLambda(maxDetectableObjects);
+        // private
+        //private:
+        std::vector <double> delayConstantHistory(1/TimeStep);
+        
+        // TIS1 objects on lane block      
+        //this is for bend road segment 
+        if (abs(yawRate) >= 1)
+        {
+            // this block is for the bend road segment 
+            // include block of code for the bend road segment 
+           // we tabulate for TIS1 Bent road segment 
+           //TIS1 Bend road segment 
+           
+           // TIS1 Sorting Fun
+           for (int i=0; i < TISLongRange.size() ; i++){
+            if(TISLongRange[i] ==0){
+                TISLongRange[i] = 150; // TISLongRange in this case represents TIS1_RANGE [m]
+            }
+        // to include the unary minus that TIS1rangedot is going through 
+        TISLongDopplerVelocity[i] = -TISLongDopplerVelocity[i];
+        // to convert the Tis1 theta to radians 
+        TISLongTheta[i]  = deg2rad(-TISLongTheta[i]);
+        }
+        
+        
+        //TIS2 sorting fun 
+         
+        for (int i = 0; i < TISWideRange.size(); i++) {
+        if (TISWideRange[i] == 0) {
+            TISWideRange[i] = 150;
+        }
+        // this is the block that converts the degrees to radians 
+        // notice that this is being passed through a unary minus hence the negation in this case for both
+        // the TISWideDopplerVelocity == TISWideDopplerVelocityIn which in this case is the TIS2rangedot[m/s]
+        TISWideTheta[i] = deg2rad(-TISWideTheta[i]);
+        TISWideDopplerVelocity[i] = - TISWideDopplerVelocity[i];
+        }
+
+        // TIS1 Object on bend road 
+        //TISLongDistance 
+        std::vector<double> TISLongDistance(maxDetectableObjects, 150); 
+        for(int i{0} ; i< TISLongRange.size() ; i++){
+            TISLongDistance[i] = TISLongRange[i] * cos(TISLongTheta[i]) ;
+            // TIS1_LAMBDA_[rad]
+            // to limit the ego yaw rate use the saturaste function 
+            double absVelocity {0};
+            // To inquire about the conversion from radians to degrees
+            // this has been included in the block diagram even though the even though the yaw rate has already been given in degrees 
+            // absVelocity is output from the R2D block in the diagram 
+            absVelocity = (180 * velocity / saturate(abs(yawRate), 0.000001, 10000))/PI ;
+            TISLongLambda[i] = saturate(acos(saturate(-((TISLongRange[i]* sin(TISLongTheta[i])) / absVelocity)+1, -1, 1)), 0, PI ) ;
+            double sinLongTheta{0}; // output from the trigoinometric function 3
+            double sum1 {0};// output from the add4 block 
+            double con1{0};// output from the add Abs1 block in TIS1 Object on Bend Road 
+            if(yawRate > 0){
+                sinLongTheta = sin(TISLongTheta[i]);
+            }
+            else{
+                sinLongTheta = sin(-TISLongTheta[i]);
+            }
+            sum1 = (absVelocity*absVelocity) + (TISLongRange[i] *TISLongRange[i]) - (2*(sinLongTheta*TISLongRange[i] *absVelocity));
+            con1 = abs(sqrt(sum1)-absVelocity);
+            if(con1 >= laneWidth/2){
+                TISLongDopplerVelocity[i] = 0;
+                TISLongTheta[i] = 0;
+                TISLongRange[i] = 150;
+            }
+    }
+            
+            for(int i{0} ; i< TISLongRange.size() ; i++)
+            {
+            double TISLongLeadRange{0};
+            double TISLongLeadTheta{0};
+            double TISLongLeadLambda{0};
+            double TISlongLeadDopplerVelocity{0};
+            // TIS1 Closest object 
+            // to find minimum index for the vector that is distance 
+            int minIndex{0};
+            minIndex = std::min_element(TISLongDistance.begin(), TISLongDistance.end()) - TISLongDistance.begin();
+            
+            // TISLongLeadVelocity  = rangedot[m/s]
+            TISlongLeadDopplerVelocity = TISLongDopplerVelocity[minIndex];
+            //TISLongleadDistance =Distance [m]
+            if(TISLongDistance[minIndex] ==0){
+                TisLongLeadDistance[i] = 150;
+            }
+            else
+            {
+                TisLongLeadDistance[i]= TISLongDistance[minIndex];
+            }
+            
+            // TISLongLeadRange = range[m]
+            TISLongLeadRange = TISLongRange[minIndex];
+            //TISLongLeadTheta = theta [rad]
+            TISLongLeadTheta = TISLongTheta[minIndex];
+            //TISLongLeadLambda = lambda[rad]
+            TISLongLeadLambda = TISLongLambda[minIndex];
+            
+            //TIS1 HWT Computing 
+            if(velocity >0)
+            {
+                TISLongHeadWayTimeBend[i] = TisLongLeadDistance[i]/velocity;
+            }
+            else
+            {
+               TISLongHeadWayTimeBend[i] = std::numeric_limits<double>::infinity(); 
+            }
+            
+                //TIS1 HWT Flag 
+                //or block computation 
+            double ifBlockCon{0};
+                if( (TisLongLeadDistance[i] == 150) || ((TISLongHeadWayTimeBend[i] >= 2 * HeadWayTime) && (TisLongLeadDistance[i] > StandstillDistance)) || ((0.01 * floor(100 * TISLongHeadWayTimeBend[i])) > (1.25 * HeadWayTime))) {
+                ifBlockCon = 1;
+                
+            }
+            double HWTLongFlag{0};
+            
+            if ( ifBlockCon)
+            {
+                HWTLongFlag= 0;
+                
+            }
+            else if(( TISLongHeadWayTimeBend[i] <= (1.25 * HeadWayTime)) && !ifBlockCon)
+            {
+                HWTLongFlag = 1;
+            }
+            
+            // Lead car longitudinal velocity 
+           if(TISLongLeadRange >= 150)
+           {
+               TISlongLeadVelocity[i] = 0;
+           }
+           else
+           {
+               TISlongLeadVelocity[i] = abs(velocity - (TISlongLeadDopplerVelocity / cos(TISLongLeadLambda-TISLongLeadTheta)));
+           }
+           
+           if( (abs(velocity - (TISlongLeadDopplerVelocity / cos(TISLongLeadLambda-TISLongLeadTheta)))) <= (StandstillDistance/HeadWayTime))
+           {
+               TISLongSafeDistance[i] = StandstillDistance;
+           }
+           
+           else
+           {
+               TISLongSafeDistance[i]= HeadWayTime * abs(velocity - (TISlongLeadDopplerVelocity / cos(TISLongLeadLambda-TISLongLeadTheta))) ;
+           }
+           
+            // TIS1 Bend Road hold block 
+           if(TISlongLeadVelocity[i] < 0.1)
+           {
+                // if subsystem for the if action port
+                if(HWTLongFlag >0 )
+                {
+                    HWTLongFlagOutput[i] = 1;
+                    
+                }
+                else
+                {
+                    HWTLongFlagOutput[i] = 0;
+                }
+               
+           }
+           else
+           {
+               HWTLongFlagOutput[i] = HWTLongFlag;
+           }
+            
+        }
+                      
+           //TIS2 Object on bend road 
+        for(int i{0} ; i<TISWideRange.size() ; i++){
+               
+               TISWideDistance[i] = TISWideRange[i] * cos(TISWideTheta[i]);
+               
+               
+               //TISWideLambda 
+              double absVelocity {0};
+              // To inquire about the conversion from radians to degrees
+              absVelocity = (180 * velocity / saturate(abs(yawRate), 0.000001, 10000))/PI ;
+              TISWideLambda[i] = saturate(acos(saturate(-((TISWideRange[i]* sin(TISWideTheta[i])) / absVelocity)+1, -1, 1)), 0, PI ) ;
+                
+            // TISWideDopplerVelocity
+            double sinWideTheta{0};
+            double sum1 {0};
+            double con1{0};
+            
+            
+            if(yawRate >0){
+                sinWideTheta = sin(TISWideTheta[i]);
+            }
+            else{
+                sinWideTheta= sin(-TISWideTheta[i]);
+            }
+            
+            
+            sum1 = (absVelocity * absVelocity) + (TISWideRange[i] * TISWideRange[i]) - (2 * absVelocity * TISWideRange[i] * sinWideTheta);
+            con1 = abs(sqrt(sum1) - absVelocity);
+            
+            if(con1 >= laneWidth/2){
+                TISWideDopplerVelocity[i] = 0;
+                TISWideTheta[i] = 0;
+                TISWideRange[i] = 150;
+            }
+    }
+        for(int i{0} ; i<TISWideRange.size() ; i++)
+        {
+            double TISWideLeadTheta{0};
+            double TISWideLeadLambda{0};
+            double TISWideLeadRange{0};
+            
+            //TISWide closest object
+            int minIndex{0};
+            minIndex = std::min_element(TISWideDistance.begin(), TISWideDistance.end()) - TISWideDistance.begin();
+            
+            TISWideLeadRange = TISWideRange[minIndex];
+            TISWideLeadDopplerVelocity = TISWideDopplerVelocity[minIndex];
+            TISWideLeadTheta = TISWideTheta[minIndex];
+            
+            //distance 
+            if(TISWideDistance[minIndex] ==0){
+                TISWideLeadDistance[i] = 150;
+            }
+            else{
+                TISWideLeadDistance[i] = TISWideDistance[minIndex];
+            }
+            
+            TISWideLeadLambda = TISWideLambda[minIndex];
+            
+           //TIS2 HWT Computing 2
+           if(velocity > 0){
+               // if action port
+               TISWideHeadWayTimeBend[i] = TISWideLeadDistance[i]/velocity;
+           }
+           else{
+               TISWideHeadWayTimeBend[i] = std::numeric_limits<double>::infinity();
+           }
+            // TIS2 HWT Flag
+           // to compute the if block 
+           double ifBlockCon{0};
+           double HWTWideFlag{0};
+           if((TISWideLeadDistance[i] == 150) || (( TISWideHeadWayTimeBend[i]>=2*HeadWayTime)&&(TISWideLeadDistance[i]>StandstillDistance)) || ( (0.01*floor( 100*TISWideHeadWayTimeBend[i]))>(HeadWayTime*1.25))){
+               ifBlockCon = 1;
+           }
+           
+           if(ifBlockCon ){
+               HWTWideFlag = 0;
+           }
+           else if( (TISWideHeadWayTimeBend[i] <= 1.25 * HeadWayTime) && !ifBlockCon ){
+               HWTWideFlag = 1; 
+           }
+           // LEAD Car longitudinal velocity 
+           
+           if(TISWideLeadRange >= 150){
+               TISWideLeadVelocity[i] = 0;
+           }
+           else{
+               TISWideLeadVelocity[i] =  abs(velocity - (TISWideLeadDopplerVelocity/cos(TISWideLeadLambda - TISWideLeadTheta)));
+           }
+           
+           // safe distance 
+           
+           if( (abs(velocity - (TISWideLeadDopplerVelocity/cos(TISWideLeadLambda - TISWideLeadTheta)))) <= ( StandstillDistance/HeadWayTime)){
+               TISWideSafeDistance[i] = StandstillDistance;
+           }
+           else{
+               TISWideSafeDistance[i] = HeadWayTime * abs(velocity - (TISWideLeadDopplerVelocity/cos(TISWideLeadLambda - TISWideLeadTheta)));
+           }
+           
+           // TIS2 Hold for object on bend road 
+           if(TISWideLeadVelocity[i] < 0.1){
+               // if port action port
+               if( HWTWideFlag >0){
+                   HWTWideFlagOutput[i] = 1;
+                   
+               }
+               else{
+                   HWTWideFlagOutput[i] = 0;
+               }
+           }
+           else{
+               HWTWideFlagOutput[i] = HWTWideFlag;
+           }
+        }
+                   
+        for(int i{0} ; i<maxDetectableObjects ; i++){
+            
+        double HWTaddcon = TISLongHeadWayTimeBend[i] - HeadWayTime ;
+        double RDcon = velocity - TISlongLeadVelocity[i];
+        double Econ = TisLongLeadDistance[i] - TISLongSafeDistance[i];
+        double conDecelerate {0};
+        double throttleOut {0};
+        double conSubSystem {0};
+        double TISWideBrakeOutput{0};
+        double TISWideBreakPressure{0};
+        double WideRDcon = velocity - TISWideLeadVelocity[i];
+        double WideEcon = TISWideLeadDistance[i] - TISWideSafeDistance[i] ;
+        double WideHWTaddcon = TISWideHeadWayTimeBend[i] -HeadWayTime;
+        double TISWideThrottleInput{0};
+        double conK =   210/40.4695/0.34 ;
+        // brake output from the stop and go block :-
+        //TIS1 ACC Action 
+        // note by that TIS1 Flag is the same as HWTLongFlagOutput
+        // if action subsystem 
+        if( HWTaddcon >= 0){
+            if ( RDcon <= 0) {
+                
+                double DiscreteTimeIntergratorOutput{0};
+                double OutputHistory{0};
+                double EconHistory{0};
+                for(double i=TimeStep ; i< std::numeric_limits<double>::infinity() ; i++){
+                    // for the first step
+                    if(i==0){
+                        // since initial condition is 0
+                        DiscreteTimeIntergratorOutput = 0.3 *Econ *TimeStep/2;
+                        OutputHistory = DiscreteTimeIntergratorOutput ;
+                        EconHistory = Econ;
+                        conSubSystem = (100* Econ) + ( DiscreteTimeIntergratorOutput) + (3.065 * 0.01 * Econ);
+                    }
+                    else{
+                        DiscreteTimeIntergratorOutput = OutputHistory + (0.3*(Econ + EconHistory))*TimeStep/2;
+                        OutputHistory = DiscreteTimeIntergratorOutput ;
+                        EconHistory = Econ;
+                        conSubSystem = (100*Econ ) + ( DiscreteTimeIntergratorOutput);
+                    }
+                }
+                
+                if( (throttleInput - conSubSystem) >=  0){
+                    throttleOut = saturate(conSubSystem , 0 , 100);
+                    conDecelerate = 0;
+                }
+                else {
+                    throttleOut = saturate(throttleInput , 0, 100);
+                    conDecelerate = 0;
+
+                    }
+                    
+                }
+            else{
+                    if(( RDcon- (3/3.6))>0){
+                        conDecelerate =0.5 *  ((RDcon*RDcon)/saturate(abs(Econ),0.02 ,std::numeric_limits<double>::infinity()));
+                        throttleOut = 0;
+                    }
+                    else{
+                        if( (TisLongLeadDistance[i] - (HeadWayTime * TISlongLeadVelocity[i])) > 0){
+                            double outputValue{0};
+                            double rateValue{0};
+                            double saturateValue{0};
+                            double DiscreteTimeIntergratorOutput{0};
+                            double OutputHistory{0};
+                            double EconHistory{0};
+                            for(double i=TimeStep ; i< std::numeric_limits<double>::infinity() ; i++){
+                                    // for the first step
+                                    if(i==0){
+                                        // since initial condition is 0
+                                        DiscreteTimeIntergratorOutput = 0.3 *Econ *TimeStep/2;
+                                        OutputHistory = DiscreteTimeIntergratorOutput ;
+                                        EconHistory = Econ;
+                                        conSubSystem = (100* Econ) + ( DiscreteTimeIntergratorOutput) + (3.065 * 0.01 * Econ);
+                                    }
+                                    else{
+                                        DiscreteTimeIntergratorOutput = OutputHistory + (0.3*(Econ + EconHistory))*TimeStep/2;
+                                        OutputHistory = DiscreteTimeIntergratorOutput ;
+                                        EconHistory = Econ;
+                                        conSubSystem = (100*Econ ) + ( DiscreteTimeIntergratorOutput);
+                                    }
+                                }
+ 
+                                saturateValue = saturate( conSubSystem, 0, throttleInput );
+
+                            for( double i{0} ; i< std::numeric_limits<double>::infinity() ; i++ ){
+                            
+                                if(i == 0){
+                                    rateValue = saturateValue;
+                                    outputValue =rateValue;
+                                }
+                                else{
+                                    rateValue = saturateValue - outputValue ;
+                                    if(rateValue < -150000){
+                                        rateValue = -150000;
+                                    }
+                                    else if(rateValue > 150000){
+                                        rateValue = 150000;
+                                    }
+                                    outputValue += rateValue;
+                                }
+                            }
+                            throttleOut = outputValue;
+                            conDecelerate = 0;
+          
+                        }
+                        else{
+                            if(( 3.6 * TISlongLeadVelocity[i]) <  40){
+                                throttleOut = 0;
+                                conDecelerate = 0.5 * (( RDcon * RDcon)/ saturate( abs(Econ), 0.02 , std::numeric_limits<double>::infinity()));
+                            }
+                            else{
+                                conDecelerate = 0 ;
+                                throttleOut = 0;
+                            }
+                        }
+                    }
+                    
+                    
+                    }
+                    if( HWTLongFlagOutput[i] > 0){ 
+                    double RateLimitValue{0};
+                    double  OutputValue{0};
+                    
+                    for(double i{0} ; i< std::numeric_limits<double>::infinity() ; i++){
+                        if(i == 0){
+                            RateLimitValue =  saturate(conDecelerate , 0, 150);
+                            OutputValue = RateLimitValue ;
+                        }
+                        else{
+                            RateLimitValue = (saturate(conDecelerate , 0, 150)) - OutputValue;
+                            if(RateLimitValue > 150){
+                                RateLimitValue = 150;
+                            }
+                            else if(RateLimitValue < -150){
+                                RateLimitValue = -150;
+                            }
+                        }
+                        OutputValue += RateLimitValue;
+                        
+                    }
+                        
+                        TISLongBrakeOutput[i] = conK * OutputValue;
+                        TISLongThrottleOutput[i] = throttleOut;
+                    }
+                    else {
+                        TISLongBrakeOutput[i] = brake;
+                        TISLongThrottleOutput[i] = throttleInput;
+                    }
+        
+            }
+            // if action subsystem 1            
+            else{
+                if( RDcon <= 0){
+                    conDecelerate = 0;
+                    throttleOut = 0 ;                    
+                }
+                else{
+                    if( (RDcon - (3/3.6)) >0){
+                        conDecelerate = 150;
+                        throttleOut = 0;                        
+                    }  
+                    else{
+                        if((TisLongLeadDistance[i] - ( HeadWayTime * TISlongLeadVelocity[i]))>0){
+                            throttleOut = 0;
+                            conDecelerate= 0;
+                        }
+                        else{
+                            if (  (3.6 * TISlongLeadVelocity[i]) <40) {
+                                throttleOut = 0;
+                                conDecelerate = 0.5 * ((RDcon*RDcon)/ saturate(abs(Econ), 0.02 ,  std::numeric_limits<double>::infinity() ));
+                            }
+                            else{
+                                throttleOut = 0;
+                                conDecelerate = 0;
+                            }
+                        }
+                    }                    
+                }
+              if(HWTLongFlagOutput[i]>0){
+                    double RateLimitValue{0};
+                    double  OutputValue{0};
+                    
+                    for(double i{0} ; i< std::numeric_limits<double>::infinity() ; i++){
+                        if(i == 0){
+                            RateLimitValue =  saturate(conDecelerate , 0, 150);
+                            OutputValue = RateLimitValue ;
+                        }
+                        else{
+                            RateLimitValue = (saturate(conDecelerate , 0, 150)) - OutputValue;
+                            if(RateLimitValue > 150){
+                                RateLimitValue = 150;
+                            }
+                            else if(RateLimitValue < -150){
+                                RateLimitValue = -150;
+                            }
+                        }
+                        OutputValue += RateLimitValue;
+                        
+                    }
+                  TISLongBrakeOutput[i] = OutputValue;
+                  TISLongThrottleOutput[i] = throttleOut;
+              }  
+              else{
+                  TISLongBrakeOutput[i] = brake;
+                  TISLongThrottleOutput[i] = throttleInput ;
+                  
+              }
+                
+            }
+                    
+        // TIS2 ACC Action block 
+        if( (TISWideHeadWayTimeBend[i] -HeadWayTime) >=0){
+            // if action subsystem 
+            if( WideRDcon <= 0){
+                double saturateValue{0};
+                double rateValue{0};                
+                double DiscreteTimeIntergratorOutput{0};
+                double OutputHistory{0};
+                double EconHistory{0};
+                for(double i=TimeStep ; i< std::numeric_limits<double>::infinity() ; i++){
+                    // for the first step
+                    if(i==0){
+                        // since initial condition is 0
+                        DiscreteTimeIntergratorOutput = 0.3 *Econ *TimeStep/2;
+                        OutputHistory = DiscreteTimeIntergratorOutput ;
+                        EconHistory = Econ;
+                        conSubSystem = (100* Econ) + ( DiscreteTimeIntergratorOutput) + (3.065 * 0.01 * Econ);
+                    }
+                    else{
+                        DiscreteTimeIntergratorOutput = OutputHistory + (0.3*(Econ + EconHistory))*TimeStep/2;
+                        OutputHistory = DiscreteTimeIntergratorOutput ;
+                        EconHistory = Econ;
+                        conSubSystem = (100*Econ ) + ( DiscreteTimeIntergratorOutput);
+                    }
+                     }
+  
+                if(  (throttleInput - conSubSystem) >=0){
+                    conDecelerate = 0;
+                    saturateValue = saturate(conSubSystem , 0, 100);
+                    //to include rate limiter here 
+                    for( double i{0} ; i< std::numeric_limits<double>::infinity() ; i++ ){
+                    if(i=0){
+                        rateValue = saturateValue;
+                        throttleOut = rateValue;
+                    }
+                    else{
+                        rateValue = saturateValue - throttleOut;
+                        if(rateValue <-150000){
+                            rateValue = -150000;
+                            
+                        }
+                        else if( rateValue > 150000){
+                            rateValue = 150000;
+                        }
+                        
+                        throttleOut += rateValue;
+                    }
+                }
+                }
+                else{
+                    conDecelerate = 0;
+                    saturateValue = saturate(throttleInput , 0, 100);
+                    for( double i{0} ; i< std::numeric_limits<double>::infinity() ; i++ ){
+                    if(i=0){
+                        rateValue = saturateValue;
+                        throttleOut = rateValue;
+                    }
+                    else{
+                        rateValue = saturateValue - throttleOut;
+                        if(rateValue <-150000){
+                            rateValue = -150000;
+                            
+                        }
+                        else if( rateValue > 150000){
+                            rateValue = 150000;
+                        }
+                        throttleOut += rateValue;
+                    }
+                    }
+                }
+
+            }
+            else{
+                 if((WideRDcon - (3/3.6))>0){
+                     conDecelerate = 0.5 * ((WideRDcon* WideRDcon)/saturate(abs(WideEcon),0.02 , std::numeric_limits<double>::infinity()));
+                     throttleOut = 0;
+                     
+                 }
+                 else{
+                     if( (TISWideLeadDistance[i] - HeadWayTime *  TISWideLeadVelocity[i])> 0){
+                        double saturateValue{0};
+                        double rateValue{0};
+                        double DiscreteTimeIntergratorOutput{0};
+                        double OutputHistory{0};
+                        double EconHistory{0};
+                    for(double i=TimeStep ; i< std::numeric_limits<double>::infinity() ; i++){
+                        // for the first step
+                        if(i==0){
+                            // since initial condition is 0
+                            DiscreteTimeIntergratorOutput = 0.3 *Econ *TimeStep/2;
+                            OutputHistory = DiscreteTimeIntergratorOutput ;
+                            EconHistory = Econ;
+                            conSubSystem = (100* Econ) + ( DiscreteTimeIntergratorOutput) + (3.065 * 0.01 * Econ);
+                        }
+                        else{
+                            DiscreteTimeIntergratorOutput = OutputHistory + (0.3*(Econ + EconHistory))*TimeStep/2;
+                            OutputHistory = DiscreteTimeIntergratorOutput ;
+                            EconHistory = Econ;
+                            conSubSystem = (100*Econ ) + ( DiscreteTimeIntergratorOutput);
+                        }
+                    }
+                    saturateValue =saturate(conSubSystem ,0 , throttleInput );
+                    if(i=0){
+                        rateValue = saturateValue;
+                        throttleOut = rateValue;
+                        conDecelerate = 0;
+                    }
+                    else{
+                        rateValue = saturateValue - throttleOut;
+                        if(rateValue < -150000){
+                            rateValue = -150000;
+                        }
+                        else if(rateValue>150000){
+                            rateValue = 150000;
+            
+                        }
+                        throttleOut += rateValue;
+                        conDecelerate = 0;
+                    }
+
+                     }
+                      else{
+                          if( 3.6 * TISWideLeadVelocity[i] < 40){
+                                throttleOut = 0;
+                                conDecelerate = 0.5 * ((WideRDcon * WideRDcon)/ saturate(abs(WideEcon), 0.02 , std::numeric_limits<double>::infinity()));
+                          }
+                          else{
+                                throttleOut = 0;
+                                conDecelerate = 0;
+                          }
+                      }
+                     
+                 }
+                
+            }
+            
+            double saturateValueConstant {0};
+            double rateValueConstant {0};
+            if(HWTWideFlagOutput[i] >0){
+                // add rate limiter in this 
+                saturateValueConstant =  conK * saturate( conDecelerate, 0, 150);
+                for( int i{0} ; i < std::numeric_limits<double>::infinity() ; i++){
+                    if(i = 0){
+                        rateValueConstant = saturateValueConstant;
+                        TISWideBreakPressure =rateValueConstant;
+                    }
+                    else{
+                        rateValueConstant = saturateValueConstant - TISWideBreakPressure;
+                        if(rateValueConstant < -150){
+                            rateValueConstant = -150;
+                        }
+                        else if( rateValueConstant > 150){
+                            rateValueConstant = 150;
+                        }
+                        TISWideBreakPressure += rateValueConstant; 
+                    }
+                    
+                } 
+                TISWideThrottleInput = throttleOut;
+            }
+            else{
+                TISWideBreakPressure = brake;
+                TISWideThrottleInput = throttleInput;
+            }
+        }
+        // if action subsystem 1
+        else{
+            if(WideRDcon <= 0){
+                conDecelerate = 0;
+                throttleOut = 0;
+            }
+            else{
+                if( (WideRDcon - ( 3/3.6)) > 0){
+                    conDecelerate = 150;
+                    throttleOut = 0;
+                }
+                else{
+                    if(( TISWideLeadDistance[i] - (HeadWayTime * TISWideLeadVelocity[i]))>0){
+                        throttleOut = 0;
+                        conDecelerate= 0;
+                    }
+                    else{
+                        if( 3.6 * TISWideLeadVelocity[i]  < 40) {
+                            conDecelerate = 0.5 * ( (WideRDcon*WideRDcon)/saturate(abs(WideEcon), 0.02, std::numeric_limits<double>::infinity()));
+                            throttleOut = 0;
+                        }
+                        else{
+                            conDecelerate = 0;
+                            throttleOut = 0;
+                            
+                        }
+                    }
+
+                }
+
+            }
+            
+            // now to tabulate and include the stop and go block 
+           double saturateValueConstant {0};
+            double rateValueConstant {0};
+            if(HWTWideFlagOutput[i] >0) {
+                // add rate limiter in this 
+                saturateValueConstant =  conK * saturate( conDecelerate, 0, 150);
+                for( double i{0} ; i< std::numeric_limits<double>::infinity() ; i++){
+                    if(i = 0){
+                        rateValueConstant = saturateValueConstant;
+                        TISWideBreakPressure =rateValueConstant;
+                    }
+                    else{
+                        rateValueConstant = saturateValueConstant - TISWideBreakPressure;
+                        if(rateValueConstant < -150){
+                            rateValueConstant = -150;
+                        }
+                        else if( rateValueConstant > 150){
+                            rateValueConstant = 150;
+                        }
+                        TISWideBreakPressure += rateValueConstant; 
+                    }
+                    
+                } 
+                TISWideThrottleInput = throttleOut;
+            }
+            else{
+                TISWideBreakPressure = brake;
+                TISWideThrottleInput = throttleInput;
+            }            
+            
+        }
+            // stop and go block
+            
+            if( ( HWTWideFlagOutput[i] && ( 40 > (3.6 * TISWideLeadVelocity[i]))) == 1){
+                // if action subsystem 
+                if( (TISWideLeadDistance[i] -TISWideSafeDistance[i]) >0 ){
+                    if(WideRDcon >0 ){
+                         // action port
+                        if( ((TISWideLeadDistance[i] + 1) - StandstillDistance) > 0){
+                            TISWideBrakeOutput= conK * saturate(0.5 * ((WideRDcon * WideRDcon)/ saturate(abs(WideEcon), 0.02 , std::numeric_limits<double>::infinity())), 0 ,150 );
+                            TISWideThrottleOutput[i]=0;
+                        }
+                         else{
+                             TISWideThrottleOutput[i] = 0;
+                             TISWideBrakeOutput = 150; 
+                         } 
+                    }
+                    else{
+                    double saturateValue{0};
+                    double rateValue{0};
+                    double DiscreteTimeIntergratorOutput{0};
+                    double OutputHistory{0};
+                    double EconHistory{0};
+                        for(double i=TimeStep ; i< std::numeric_limits<double>::infinity() ; i++){
+                            // for the first step
+                            if(i==0){
+                                // since initial condition is 0
+                                DiscreteTimeIntergratorOutput = 0.3 *Econ *TimeStep/2;
+                                OutputHistory = DiscreteTimeIntergratorOutput ;
+                                EconHistory = Econ;
+                                conSubSystem = (100* Econ) + ( DiscreteTimeIntergratorOutput) + (3.065 * 0.01 * Econ);
+                            }
+                            else{
+                                DiscreteTimeIntergratorOutput = OutputHistory + (0.3*(Econ + EconHistory))*TimeStep/2;
+                                OutputHistory = DiscreteTimeIntergratorOutput ;
+                                EconHistory = Econ;
+                                conSubSystem = (100*Econ ) + ( DiscreteTimeIntergratorOutput);
+                            }
+                        }
+                                saturateValue = saturate(conSubSystem , 0 , TISWideThrottleInput );
+                            for( double i{0} ; i< std::numeric_limits<double>::infinity() ; i++ ){
+                                if(i==0){
+                                    rateValue = saturateValue;
+                                    TISWideThrottleOutput[i] = rateValue;
+                                    
+                                }
+                                else{
+                                    rateValue = saturateValue -TISWideThrottleOutput[i-1];
+                                    if(rateValue < -150000){
+                                        rateValue = -150000;
+                                    }
+                                    else if( rateValue > 150000){
+                                        rateValue = 150000;
+                                    }
+                                    TISWideThrottleOutput[i] += rateValue;
+                                }
+                            }
+                       
+                            // to include the rate limiter  in the throttle 
+                            // design a rate limiter function for such 
+                            TISWideBrakeOutput = 0;
+                        }
+                    
+                }
+                else{
+                    // the else block completely done 
+                    // if action subsystem 1 for stop and go -> if action subsystem 
+                        TISWideThrottleOutput[i] = 0;
+                        double gainCon{0};
+                        gainCon = conK * saturate( (0.5 * ( (WideRDcon * WideRDcon)/saturate(abs(WideEcon),0.02, std::numeric_limits<double>::infinity()))), 0, 150 );
+                        if(WideRDcon > 0){
+                            if( TISWideLeadVelocity[i] >1 ){
+                                if(((TISWideLeadDistance[i] +1) - StandstillDistance)>0){
+                                    TISWideBrakeOutput = gainCon;
+                                }
+                                else{
+                                    // to check this constant tht is the output in this 
+                                    TISWideBrakeOutput = 150 * conK;
+                                }
+                            }
+                            else{
+                                TISWideBrakeOutput = 150 * conK;
+                            }
+                        }
+                        else{
+                            if( TISWideLeadVelocity[i] >1){
+                                if(((TISWideLeadDistance[i] +1) - StandstillDistance)>0){
+                                    TISWideBrakeOutput = 0;
+                                } 
+                                else{
+                                    TISWideBrakeOutput = 150 * conK;
+                                }
+                            }
+                            else{
+                                if(((TISWideLeadDistance[i] +1) - StandstillDistance)>0){
+                                    TISWideBrakeOutput = 150 * conK;
+                                }
+                                else{
+                                    TISWideBrakeOutput = 150 * conK;
+                                }
+                    
+                            }
+                            
+                        }
+                        
+                }
+                
+            }
+            else{
+                TISWideThrottleOutput[i] = TISWideThrottleInput;
+                TISWideBrakeOutput = TISWideBreakPressure;
+                
+            }
+            
+            // to include the subsystem block within the stop and go block 
+            if( (( abs(WideRDcon) <= 0.1) && ( abs(velocity)<= 0.1)) >0){
+                TISWideAbsBrakeOutput[i] = 150 * conK;
+                
+            }
+            else{
+                TISWideAbsBrakeOutput[i] = TISWideBrakeOutput ;
+            }
+           
+           TisLongHeadWayTimeCombined[i] = TISLongHeadWayTimeBend[i];
+           TisWideHeadWayTimeCombined[i] = TISWideHeadWayTimeBend[i];
+           }
+            
+        }
+            
+        else{
+            
+        //TIS1 sorting fun
+        for (int i=0; i < TISLongRange.size() ; i++){
+
+            if(TISLongRange[i] ==0){
+                TISLongRange[i] = 150; // TISLongRange in this case represents TIS1_RANGE [m]
+            }
+        // to include the unary minus that TIS1rangedot is going through 
+        TISLongDopplerVelocity[i] = -TISLongDopplerVelocity[i];
+        // to convert the Tis1 theta to radians 
+        TISLongTheta[i]  = deg2rad(-TISLongTheta[i]);
+         }
+         std::vector<double> TISLongDistance(maxDetectableObjects, 150); 
+        //  this is for TIS1 straight road segment
+        //TIS1 object on lane 
+        for (int i = 0; i < TISLongTheta.size(); i++){
+            // the compare block for TISLongTheta[i]
+            // TIS1 object on lane block 
+            if(TISLongRange[i] * sin(abs(TISLongTheta[i])) <(laneWidth/2)){
+                // in the case that the block is satisfied 
+                TISLongDistance[i] = cos(TISLongTheta[i])*TISLongRange[i];
+            }
+            else {
+                TISLongDistance[i] = 150;
+                TISLongDopplerVelocity[i] = 0;
+            }
+            //TIS1 HWT Computing 
+            if (velocity >0){
+                HeadWayTimeVector[i] = TISLongDistance[i]/velocity;
+            }
+            else{
+                // to inquire on the 2 * ones(TISdet(1),1)
+                //to switch the HWT to a vector
+                for (int i{0}; i< maxDetectableObjects ; i++){
+                    HeadWayTimeVector[i] = HeadWayTime *2;
+                }
+            }
+            }
+            
+         // to create a vector that will hold the value for output of  HWT[S]1 >=2* HWT_dem[s]1
+         // relational operator 1 , note by that there are maxDetectableObjects in the vector that is the headWayTimeVector 
+        std::vector <double> HWTComparisonVector (maxDetectableObjects);
+        for (int i{0}; i< maxDetectableObjects; i++){
+                if ( HeadWayTimeVector[i] >= 2*HeadWayTime){
+                    HWTComparisonVector[i] = 1;
+                }
+                else{
+                    HWTComparisonVector[i] = 0;
+                }
+            }            
+                    
+        for (int i = 0; i < TISLongDistance.size(); i++){
+            //  TIS1 closest object
+             //assigning the min value to first value of  the TISLongDopplerVelocity
+             // to compute the smallest index from the matlab function 
+             int TisLongminElementIndex = std::min_element(TISLongDistance.begin() , TISLongDistance.end())- TISLongDistance.begin();
+            TisLongLeadDistance[i] =TISLongDistance[TisLongminElementIndex];
+            TISLongLeadDopplerVelocity[i] = TISLongDopplerVelocity[TisLongminElementIndex];            
+            // TIS1 HWT computing block 1
+            if (velocity >0){
+                // this is to tabulate the HWT using the distance and velocity 
+                // note that each of the outputs for the 
+                TISLongHeadWayTimeStraight[i] = TisLongLeadDistance[i] / velocity;                
+            }
+            
+            else{
+                // setting HWT to infinity
+                TISLongHeadWayTimeStraight[i] = std::numeric_limits<double>::infinity();
+            }
+            
+            // TIS 1 HWT Flag block 
+            // we can first compute the OR block in this 
+         double ifBlockConstant{0};
+            // logical AND if  TisLongLeadDistance ==TISMaxRange(i)
+          if (( TisLongLeadDistance[i] == 150) || ( HWTComparisonVector[i] && ( TisLongLeadDistance[i] > StandstillDistance)) || ( 0.01 * floor(100*HeadWayTimeVector[i]) > 1.25*HeadWayTime)){
+                // output from this should be the HWT_flag
+                ifBlockConstant = 1;
+        }           
+           
+            // to tabulate the HWT[s] HWT_dem[s]
+            double sumHWTConstant {0};
+            if(HeadWayTimeVector[i] <= 1.25 * HeadWayTime){
+                sumHWTConstant = 1;
+            }
+            // compute the HWT Flag output
+            double HWTLongFlag{0};
+            if(abs(ifBlockConstant) ){
+            HWTLongFlag = 0;
+            }
+            else if(abs(sumHWTConstant) && !(abs(ifBlockConstant))) {
+            HWTLongFlag = 1;
+            }            
+     
+        // for the for block
+        // to compute lead velocity 
+        // TIS1 Lead Car longitudinal velocity block 
+        // lead_velocity [m/s]
+        if (TISLongLeadDopplerVelocity[i] == 0){
+            TISlongLeadVelocity[i] = 0;
+        }
+        else{
+            TISlongLeadVelocity[i] = abs( velocity - TISLongLeadDopplerVelocity[i]);
+        }  
+
+        // safe distance computation
+        if ( (abs( velocity - TISLongLeadDopplerVelocity[i])) <=( StandstillDistance/HeadWayTime)){
+            TISLongSafeDistance[i] = StandstillDistance;
+        }
+        else{
+            TISLongSafeDistance[i]= (abs( velocity - TISLongLeadDopplerVelocity[i])) * HeadWayTime;
+        }     
+
+        //TIS1 hold
+        if(TISlongLeadVelocity[i] < 0.1){
+            if(HWTLongFlag>0){
+                HWTLongFlagOutput[i] = 1;
+            }
+            else{
+                HWTLongFlagOutput[i] = 0;
+            }
+        }
+        else {
+            HWTLongFlagOutput[i] = HWTLongFlag;
+        }   
+        
+        }
+        
+        // TIS2 straight Road
+        //TIS2 sorting fun 
+        for (int i = 0; i < TISWideRange.size(); i++) {
+            if (TISWideRange[i] == 0) {
+                TISWideRange[i] = 150;
+        }
+        // this is the block that converts the degrees to radians 
+        // notice that this is being passed through a unary minus hence the negation in this case for both
+        // the TISWideDopplerVelocity == TISWideDopplerVelocityIn which in this case is the TIS2rangedot[m/s]
+        TISWideTheta[i] = deg2rad(-TISWideTheta[i]);
+        TISWideDopplerVelocity[i] = - TISWideDopplerVelocity[i];
+         }
+        
+        // to tabulate TIS2 doppler velocity and TIS2 Distance
+        // TIS2 Objects on lane
+        for (int i{0}; i<TISWideRange.size() ; i++){
+            
+            if ( (TISWideRange[i] * sin(abs(TISWideTheta[i]))) <(laneWidth/2)){
+                TISWideDistance[i] = cos( TISWideTheta[i] ) * TISWideRange[i];
+            }
+            else{
+                TISWideDistance[i] = 150;
+                TISWideDopplerVelocity[i] = 0;
+                
+            }
+            
+            //TIS2 HWT Computing
+            if(velocity  >0){
+                HeadWayTimeVector[i] = TISWideDistance[i] / velocity;
+            }
+            else {
+                //to switch the HWT to a vector
+                for (int i{0}; i< maxDetectableObjects ; i++){
+                    HeadWayTimeVector[i] = HeadWayTime *2;
+                }
+            }
+        }
+
+        // to create a vector that will hold the value for output of  HWT[S]1 >=2* HWT_dem[s]1
+        std::vector <double> HWTComparisonVector (maxDetectableObjects);
+        for (int i{0}; i< maxDetectableObjects; i++){
+                if ( HeadWayTimeVector[i] >= 2*HeadWayTime){
+                    HWTComparisonVector[i] = 1;
+                }
+                else{
+                    HWTComparisonVector[i] = 0;
+                }
+            }
+  
+        for (int i{0}; i<TISWideDistance.size() ; i++){          
+        //TIS2 closest object 
+        int TisWideminElementIndex = std::min_element(TISWideDistance.begin() , TISWideDistance.end())- TISWideDistance.begin();            
+        TISWideLeadDistance[i] = TISWideDistance[TisWideminElementIndex];
+        TISWideLeadDopplerVelocity[i]= TISWideDopplerVelocity[TisWideminElementIndex];            
+        // to tabulate the HWT[s] HWT_dem[s]
+        double sumHWTConstant {0};
+        for(int i{0} ; i<maxDetectableObjects;i++){
+                if(HeadWayTimeVector[i] <= 1.25*HeadWayTime){
+                sumHWTConstant=1;
+            }
+            
+            }
+           
+        double ifBlockConstant{0};
+        // logical AND if  TisLongLeadDistance ==TISMaxRange(i)
+        if (( TISWideLeadDistance[i] == 150) || ( HWTComparisonVector[i] && ( TISWideLeadDistance[i] > StandstillDistance)) || ( 0.01 * floor(100*HeadWayTimeVector[i])> 1.25*HeadWayTime)){
+            // output from this should be the HWT_flag
+            ifBlockConstant = 1;
+        }
+        
+        // to tabulate the HWT_flag for the TIS2 Straight road 
+        double HWTWideFlag{0};
+        if(ifBlockConstant ){
+            HWTWideFlag[i] = 0;
+        }
+        else if(sumHWTConstant && !(ifBlockConstant)) {
+            HWTWideFlag[i] = 1;
+        } 
+
+        //TIS2 LEAD CAR LONGITUDINAL VELOCITY BLOCK
+        // To tabulate the lead velocity
+        // this can be outside the  block 
+        
+        if (TISWideLeadDopplerVelocity[i] == 0){
+            TISWideLeadVelocity[i] = 0;
+        }
+        else{
+            TISWideLeadVelocity[i]= abs(velocity - TISWideLeadDopplerVelocity[i]);
+        }
+        
+         // to tabulate the safeDistance 
+        if( abs(velocity-TISWideLeadDopplerVelocity[i]) <= (StandstillDistance/HeadWayTime)){
+            TISWideSafeDistance[i] = StandstillDistance;
+        }
+        else{
+            TISWideSafeDistance[i] = ( (abs(velocity - TISWideLeadDopplerVelocity[i])) * HeadWayTime)
+        }       
+        
+        //TIS2 hold
+        if(TISWideLeadVelocity[i] < 0.1){
+            if(HWTWideFlag >0){
+                HWTWideFlagOutput[i] = 1;
+            }
+            else{
+                HWTWideFlagOutput[i]  = 0;
+            }
+             
+        }
+        else {
+            HWTWideFlagOutput[i]  = HWTWideFlag;
+        }
+        
+        // TIS1 HWT Computing block
+         if( velocity > 0){
+            TISWideHeadWayTimeStraight[i] = TISWideLeadDistance[i]/velocity;
+            
+        }
+        else{
+            // declaring this to infinity
+            TISWideHeadWayTimeStraight[i] = std::numeric_limits<double>::infinity();
+        }
+        
+     }
+        
+        //TIS1 ACC Action 
+        for( int i{0} ; i< maxDetectableObjects ; i++){
+        double HWTaddcon = TISLongHeadWayTimeStraight[i] - HeadWayTime ;
+        double RDcon = velocity - TISlongLeadVelocity[i];
+        double Econ = TisLongLeadDistance[i] - TISLongSafeDistance[i];
+        double conDecelerate{0};
+        double throttleOut {0};
+        double conSubSystem {0};
+        double conK =   210/40.4695/0.34 ;
+        // brake output from the stop and go block :-
+        // note by that TIS1 Flag is the same as HWTLongFlagOutput
+        // if action subsystem 
+        if( HWTaddcon >= 0){
+            if ( RDcon <= 0) {
+                double DiscreteTimeIntergratorOutput{0};
+                double OutputHistory{0};
+                double EconHistory{0};
+                for(double i=TimeStep ; i< std::numeric_limits<double>::infinity() ; i++){
+                    // for the first step
+                    if(i==0){
+                        // since initial condition is 0
+                        DiscreteTimeIntergratorOutput = 0.3 *Econ *TimeStep/2;
+                        OutputHistory = DiscreteTimeIntergratorOutput ;
+                        EconHistory = Econ;
+                        conSubSystem = (100* Econ) + ( DiscreteTimeIntergratorOutput) + (3.065 * 0.01 * Econ);
+                    }
+                    else{
+                        DiscreteTimeIntergratorOutput = OutputHistory + (0.3*(Econ + EconHistory))*TimeStep/2;
+                        OutputHistory = DiscreteTimeIntergratorOutput ;
+                        EconHistory = Econ;
+                        conSubSystem = (100*Econ ) + ( DiscreteTimeIntergratorOutput);
+                    }
+                }
+                if( (throttleInput - conSubSystem) >=  0){
+                    throttleOut = saturate(conSubSystem , 0 , 100);
+                    conDecelerate = 0;
+                }
+                else {
+                    throttleOut = saturate(throttleInput , 0, 100);
+                    conDecelerate = 0;
+                    }
+                    
+                }
+            else{
+                    if(( RDcon- (3/3.6))>0){
+                        conDecelerate =0.5 *  ((RDcon*RDcon)/saturate(abs(Econ),0.02 ,std::numeric_limits<double>::infinity()));
+                        throttleOut = 0;
+                    }
+                    else{
+                        if( (TisLongLeadDistance[i] - (HeadWayTime * TISlongLeadVelocity[i])) > 0){
+                            double outputValue{0};
+                            double rateValue{0};
+                            double saturateValue{0};
+                            // to inquire of the step values that can be taken 
+                            double DiscreteTimeIntergratorOutput{0};
+                            double OutputHistory{0};
+                            double EconHistory{0};
+                            for(double i=TimeStep ; i< std::numeric_limits<double>::infinity() ; i++){
+                                // for the first step
+                                if(i==0){
+                                    // since initial condition is 0
+                                    DiscreteTimeIntergratorOutput = 0.3 *Econ *TimeStep/2;
+                                    OutputHistory = DiscreteTimeIntergratorOutput ;
+                                    EconHistory = Econ;
+                                    conSubSystem = (100* Econ) + ( DiscreteTimeIntergratorOutput) + (3.065 * 0.01 * Econ);
+                                }
+                                else{
+                                    DiscreteTimeIntergratorOutput = OutputHistory + (0.3*(Econ + EconHistory))*TimeStep/2;
+                                    OutputHistory = DiscreteTimeIntergratorOutput ;
+                                    EconHistory = Econ;
+                                    conSubSystem = (100*Econ ) + ( DiscreteTimeIntergratorOutput);
+                                }
+                            }    
+                            saturateValue = saturate( conSubSystem, 0, throttleInput );
+                            for( double i{0} ; i< std::numeric_limits<double>::infinity() ; i++ ){        
+                            if(i == 0){
+                                rateValue = saturateValue;
+                                outputValue =rateValue;
+                            }
+                            else{
+                                        rateValue = saturateValue - outputValue ;
+                                        if(rateValue < -150000){
+                                            rateValue = -150000;
+                                        }
+                                        else if(rateValue > 150000){
+                                            rateValue = 150000;
+                                        }
+                                        outputValue += rateValue;
+                                    }
+                            }   
+                            // to include the rate limiter to the throttle output 
+                            throttleOut = outputValue;
+                            conDecelerate = 0;
+                        }
+                        else{
+                            if(( 3.6 * TISlongLeadVelocity[i]) <  40){
+                                throttleOut = 0;
+                                conDecelerate = 0.5 * (( RDcon * RDcon)/ saturate( abs(econ), 0.02 , std::numeric_limits<double>::infinity()));
+                            }
+                            else{
+                                conDecelerate = 0 ;
+                                throttleOut = 0;
+                            }
+                        }
+                    }
+
+                    }
+                if( HWTLongFlagOutput[i] > 0){
+                double RateLimitValue{0};
+                double  OutputValue{0};
+                for(double i{0} ; i< std::numeric_limits<double>::infinity() ; i++){
+                    if(i == 0){
+                        RateLimitValue =  saturate(conDecelerate , 0, 150);
+                        OutputValue = RateLimitValue ;                        
+                    }
+                    else{
+                        RateLimitValue = (saturate(conDecelerate , 0, 150)) - OutputValue;
+                        if(RateLimitValue > 150){
+                            RateLimitValue = 150;
+                        }
+                        else if(RateLimitValue < -150){
+                            RateLimitValue = -150;
+                        }
+                    }
+                    OutputValue += RateLimitValue;
+                }
+                    
+                    TISLongBrakeOutput[i] = conK * OutputValue;
+                    TISLongThrottleOutput[i] = throttleOut;
+                }
+                else {
+                    TISLongBrakeOutput[i] = brake;
+                    TISLongThrottleOutput[i] = throttleInput;
+                }
+                    
+                    
+            }
+            // if action subsystem 1
+            
+        else{
+            if( RDcon <= 0){
+                    conDecelerate = 0;
+                    throttleOut = 0 ;
+                    
+                }
+            else{
+                    if( (RDcon - (3/3.6)) >0){
+                        conDecelerate = 150;
+                        throttleOut = 0;
+                        
+                    }  
+                    else{
+                        if((TisLongLeadDistance[i] - ( HeadWayTime * TISlongLeadVelocity[i]))>0){
+                            throttleOut = 0;
+                            conDecelerate= 0;
+                            
+                        }
+                        else{
+                            if (  (3.6 * TISlongLeadVelocity[i]) <40) {
+                                throttleOut = 0;
+                                conDecelerate = 0.5 * ((RDcon*RDcon)/ saturate(abs(Econ), 0.02 ,  std::numeric_limits<double>::infinity() ));
+                            }
+                            else{
+                                throttleOut = 0;
+                                conDecelerate = 0;
+                            }
+ 
+                        }
+                    }
+                    
+                }
+            if(HWTLongFlagOutput[i]\>0){
+                    double RateLimitValue{0};
+                    double  OutputValue{0};
+                    
+                    for(double i{0} ; i< std::numeric_limits<double>::infinity() ; i++){
+                        if(i == 0){
+                            RateLimitValue =  saturate(conDecelerate , 0, 150);
+                            OutputValue = RateLimitValue ;
+                            
+                        }
+                        else{
+                            RateLimitValue = (saturate(conDecelerate , 0, 150)) - OutputValue;
+                            if(RateLimitValue > 150){
+                                RateLimitValue = 150;
+                            }
+                            else if(RateLimitValue < -150){
+                                RateLimitValue = -150;
+                            }
+                        }
+                        OutputValue += RateLimitValue;
+                        
+                    }
+                  TISLongBrakeOutput[i] = OutputValue;
+                  TISLongThrottleOutput[i] = throttleOut;
+              }  
+            else{
+                  TISLongBrakeOutput[i] = brake;
+                  TISLongThrottleOutput[i] = throttleInput ;
+                  
+              }
+                
+            }
+            
+            }
+            
+            
+        for( int i{0} ; i< maxDetectableObjects ; i++){
+        double WideEcon = TISWideLeadDistance[i] - TISWideSafeDistance[i] ;
+        double WideHWTaddcon = TISWideHeadWayTimeStraight[i] -HeadWayTime;
+        double WideRDcon = velocity - TISWideLeadVelocity[i];
+        double conDecelerate{0};
+        double throttleOut {0};
+        double conSubSystem {0};
+        double TISWideBrakeOutput{0};
+        double TISWideBreakPressure{0};
+        double TISWideThrottleInput{0};        
+         double conK =   210/40.4695/0.34 ;
+       
+        // TIS2 ACC Action block 
+        if( (TISWideHeadWayTimeStraight[i] -HeadWayTime) >=0){
+            // if action subsystem 
+            if( WideRDcon <= 0){
+                double DiscreteTimeIntergratorOutput{0};
+                double OutputHistory{0};
+                double EconHistory{0};
+                for(double i=TimeStep ; i< std::numeric_limits<double>::infinity() ; i++){
+                    // for the first step
+                    if(i==0){
+                        // since initial condition is 0
+                        DiscreteTimeIntergratorOutput = 0.3 *Econ *TimeStep/2;
+                        OutputHistory = DiscreteTimeIntergratorOutput ;
+                        EconHistory = Econ;
+                        conSubSystem = (100* Econ) + ( DiscreteTimeIntergratorOutput) + (3.065 * 0.01 * Econ);
+                    }
+                    else{
+                        DiscreteTimeIntergratorOutput = OutputHistory + (0.3*(Econ + EconHistory))*TimeStep/2;
+                        OutputHistory = DiscreteTimeIntergratorOutput ;
+                        EconHistory = Econ;
+                        conSubSystem = (100*Econ ) + ( DiscreteTimeIntergratorOutput);
+                    }
+                }
+                if(  (throttleInput - conSubSystem) >=0){
+                    //to include rate limiter here 
+                    throttleOut = saturate(conSubSystem , 0, 100);
+                    conDecelerate = 0 ;
+                }
+                else{
+                    throttleOut = saturate(throttleInput , 0 , 100);
+                    conDecelerate = 0;
+                }
+    
+            }
+            else{
+                 if((WideRDcon - (3/3.6))>0){
+                     conDecelerate = 0.5 * ((WideRDcon* WideRDcon)/saturate(abs(WideEcon),0.02 , std::numeric_limits<double>::infinity()));
+                     throttleOut = 0;
+                     
+                 }
+                 else{
+                     if( (TISWideLeadDistance[i] - HeadWayTime *  TISWideLeadVelocity[i])> 0){
+
+                    double DiscreteTimeIntergratorOutput{0};
+                    double OutputHistory{0};
+                    double EconHistory{0};
+                    double saturateValue{0};
+                    double rateValue{0};
+                    for(double i=TimeStep ; i< std::numeric_limits<double>::infinity() ; i++){
+                        // for the first step
+                        if(i==0){
+                            // since initial condition is 0
+                            DiscreteTimeIntergratorOutput = 0.3 *Econ *TimeStep/2;
+                            OutputHistory = DiscreteTimeIntergratorOutput ;
+                            EconHistory = Econ;
+                            conSubSystem = (100* Econ) + ( DiscreteTimeIntergratorOutput) + (3.065 * 0.01 * Econ);
+                        }
+                        else{
+                            DiscreteTimeIntergratorOutput = OutputHistory + (0.3*(Econ + EconHistory))*TimeStep/2;
+                            OutputHistory = DiscreteTimeIntergratorOutput ;
+                            EconHistory = Econ;
+                            conSubSystem = (100*Econ ) + ( DiscreteTimeIntergratorOutput);
+                        }
+                    }
+                        saturateValue= saturate(conSubSystem ,0 , throttleInput );
+                for( double i{0} ; i< std::numeric_limits<double>::infinity() ; i++ ){
+                    if(i==0){
+                        rateValue = saturateValue;
+                        throttleOut= rateValue;
+                    }
+                    else{
+                        rateValue= throttleOut - saturateValue;
+                        if(rateValue>150000){
+                            rateValue = 150000;
+                        }
+                        else if(rateValue > -150000){
+                            rateValue = -150000;
+                        }
+                        throttleOut +=rateValue;
+                    }
+                }
+                         conDecelerate = 0;                         
+                     }
+                      else{
+                          if( 3.6 * TISWideLeadVelocity[i] < 40){
+                                throttleOut = 0;
+                                conDecelerate = 0.5 * ((WideRDcon * WideRDcon)/ saturate(abs(WideEcon), 0.02 , std::numeric_limits<double>::infinity()));
+                          }
+                          else{
+                                throttleOut = 0;
+                                conDecelerate = 0;
+                          }
+                      }
+                     
+                 }
+                
+            }
+            
+        double saturateValueConstant {0};
+        double rateValueConstant {0};
+            if(HWTWideFlagOutput[i] >0){
+                // add rate limiter in this 
+                saturateValueConstant =  conK * saturate( conDecelerate, 0, 150);
+                for( double i{0} ;i< std::numeric_limits<double>::infinity() ; i++){
+                    if(i = 0){
+                        rateValueConstant = saturateValueConstant;
+                        TISWideBreakPressure =rateValueConstant;
+                    }
+                    else{
+                        rateValueConstant = saturateValueConstant - TISWideBreakPressure;
+                        if(rateValueConstant < -150){
+                            rateValueConstant = -150;
+                        }
+                        else if( rateValueConstant > 150){
+                            rateValueConstant = 150;
+                        }
+                        TISWideBreakPressure += rateValueConstant; 
+                    }
+                    
+                } 
+                TISWideThrottleInput = throttleOut;
+            }
+            else{
+                TISWideBreakPressure = brake;
+                TISWideThrottleInput = throttleInput;
+            }
+        }
+        // if action subsystem 1
+        else{
+            if(WideRDcon <= 0){
+                conDecelerate = 0;
+                throttleOut = 0;
+            }
+            else{
+                if( (WideRDcon - ( 3/3.6)) > 0){
+                    conDecelerate = 150;
+                    throttleOut = 0;
+                }
+                else{
+                    if(( TISWideLeadDistance[i] - (HeadWayTime * TISWideLeadVelocity[i]))>0){
+                        throttleOut = 0;
+                        conDecelerate= 0;
+                    }
+                    else{
+                        if( 3.6 * TISWideLeadVelocity[i]  < 40) {
+                            conDecelerate = 0.5 * ( (WideRDcon*WideRDcon)/saturate(abs(WideEcon), 0.02, std::numeric_limits<double>::infinity()));
+                            throttleOut = 0;
+                        }
+                        else{
+                            conDecelerate = 0;
+                            throttleOut = 0;
+                        }
+                        
+                    }
+
+                }
+                
+            }
+            // now to tabulate and include the stop and go block 
+            
+            double saturateValueConstant {0};
+            double rateValueConstant {0};
+            if(HWTWideFlagOutput[i] >0){
+                // add rate limiter in this 
+                saturateValueConstant =  conK * saturate( conDecelerate, 0, 150);
+                for( int i{0} ; i < std::numeric_limits<double>::infinity() ; i++){
+                    if(i = 0){
+                        rateValueConstant = saturateValueConstant;
+                        TISWideBreakPressure =rateValueConstant;
+                    }
+                    else{
+                        rateValueConstant = saturateValueConstant - TISWideBreakPressure;
+                        if(rateValueConstant < -150){
+                            rateValueConstant = -150;
+                        }
+                        else if( rateValueConstant > 150){
+                            rateValueConstant = 150;
+                        }
+                        TISWideBreakPressure += rateValueConstant; 
+                    }
+                    
+                } 
+                TISWideThrottleInput = throttleOut;
+            }
+            else{
+                TISWideBreakPressure = brake;
+                TISWideThrottleInput = throttleInput;
+            }            
+            
+        }
+        
+            // stop and go block
+            
+            if( ( HWTWideFlagOutput[i] && ( 40 > (3.6 * TISWideLeadVelocity[i]))) == 1){
+                // if action subsystem 
+                if( (TISWideLeadDistance[i] -TISWideSafeDistance[i]) >0 ){
+                    if(WideRDcon >0 ){
+                         // action port
+                        if( ((TISWideLeadDistance[i] + 1) - StandstillDistance) > 0){
+                            TISWideBrakeOutput= conK * saturate(0.5 * ((WideRDcon * WideRDcon)/ saturate(abs(WideEcon), 0.02 , std::numeric_limits<double>::infinity())), 0 ,150 );
+                            TISWideThrottleOutput[i] = 0;
+                        }
+                         else{
+                             TISWideThrottleOutput[i]  = 0;
+                             TISWideBrakeOutput = 150; 
+                         }
+                       
+                    }
+                    else{
+                        double saturateValue{0};
+                        double rateValue{0};
+                        double DiscreteTimeIntergratorOutput{0};
+                        double OutputHistory{0};
+                        double EconHistory{0};
+                        for(double i=TimeStep ; i< std::numeric_limits<double>::infinity() ; i++){
+                            // for the first step
+                            if(i==0){
+                                // since initial condition is 0
+                                DiscreteTimeIntergratorOutput = 0.3 *Econ *TimeStep/2;
+                                OutputHistory = DiscreteTimeIntergratorOutput ;
+                                EconHistory = Econ;
+                                conSubSystem = (100* Econ) + ( DiscreteTimeIntergratorOutput) + (3.065 * 0.01 * Econ);
+                            }
+                            else{
+                                DiscreteTimeIntergratorOutput = OutputHistory + (0.3*(Econ + EconHistory))*TimeStep/2;
+                                OutputHistory = DiscreteTimeIntergratorOutput ;
+                                EconHistory = Econ;
+                                conSubSystem = (100*Econ ) + ( DiscreteTimeIntergratorOutput);
+                            }
+                        }
+                        saturateValue = saturate(conSubSystem , 0 , TISWideThrottleInput );
+                        for (double i{0} ; i<std::numeric_limits<double>::infinity() ; i++){
+                            if(i=0){
+                                rateValue = saturateValue;
+                                TISWideThrottleOutput[i]  = rateValue;
+                                
+                            }
+                            else{
+                                rateValue = saturateValue -TISWideThrottleOutput[i] ;
+                                if(rateValue < -150000){
+                                    rateValue = -150000;
+                                }
+                                else if( rateValue > 150000){
+                                    rateValue = 150000;
+                                }
+                                TISWideThrottleOutput[i]  += rateValue;
+                            }
+                            
+                        }
+
+                        TISWideBrakeOutput = 0;
+                    }
+                    
+                }
+                else{
+                    // the else block completely done 
+                    // if action subsystem 1 for stop and go -> if action subsystem 
+                        TISWideThrottleOutput[i]  = 0;
+                        double gainCon{0};
+                        gainCon = conK * saturate( (0.5 * ( (WideRDcon * WideRDcon)/saturate(abs(WideEcon),0.02, std::numeric_limits<double>::infinity()))), 0, 150 );
+                        if(WideRDcon > 0){
+                            if( TISWideLeadVelocity[i] >1 ){
+                                if(((TISWideLeadDistance[i] +1) - StandstillDistance)>0){
+                                    TISWideBrakeOutput = gainCon;
+                                }
+                                else{
+                                    TISWideBrakeOutput = 150 * conK;
+                                }
+                            }
+                            else{
+                                TISWideBrakeOutput = 150 * conK;
+                            }
+                        }
+                        else{
+                            if( TISWideLeadVelocity[i] >1){
+                                if(((TISWideLeadDistance[i] +1) - StandstillDistance)>0){
+                                    TISWideBrakeOutput = 0;
+                                } 
+                                else{
+                                    TISWideBrakeOutput = 150 * conK;
+                                }
+                            }
+                            else{
+                                if(((TISWideLeadDistance[i] +1) - StandstillDistance)>0){
+                                    TISWideBrakeOutput = 150 * conK;
+                                }
+                                else{
+                                    TISWideBrakeOutput = 150 * conK;
+                                }
+                    
+                            }
+                            
+                        }
+               
+                }
+                
+            }
+            else{
+                TISWideThrottleOutput = TISWideThrottleInput;
+                TISWideBrakeOutput = TISWideBreakPressure;
+                
+            }
+            
+            // to include the subsystem block within the stop and go block 
+            if( (( abs(WideRDcon) <= 0.1) && ( abs(velocity)<= 0.1)) >0){
+                TISWideAbsBrakeOutput[i] = 150 * conK;
+                
+            }
+            else{
+                TISWideAbsBrakeOutput[i] = TISWideBrakeOutput ;
+            }
+        
+
+        // for the else block
+        }
+        // this is to coalesce the output from either the bend or straight road segment and ensure that its common for the merge block to come 
+        // note that the output is from one of the either bend or straight road at any particular time 
+        
+        TisLongHeadWayTimeCombined[i] = TISLongHeadWayTimeStraight[i];
+        TisWideHeadWayTimeCombined[i] = TISWideHeadWayTimeStraight[i];
+        }
+        
+// sensor data merge
+
+   for(int i{0} ; i< maxDetectableObjects ; i++){
+       
+
+    if( HWTWideFlagOutput[i] > 0){
+        // compute the  switch 1 
+        double constantSatSwitch {0};
+        constantSatSwitch = TISWideAbsBrakeOutput[i] ;
+        SensorBrakeOutput[i] = saturate(TISWideAbsBrakeOutput[i] , 0, 150);
+        
+        // to compute the switch 0
+        if( constantSatSwitch !=0){
+            SensorThrottleOutput[i]= saturate(TISWideThrottleOutput[i], 0, 100);
+        }
+        else{
+            double satConstant {0};
+            double rateValue{0};
+            satConstant = saturate(TISWideThrottleOutput[i], 0, 100);
+
+            for(int i{0}; i< std::numeric_limits<double>::infinity()  ; i++){
+                if(i =0){
+                rateValue = satConstant;
+                SensorThrottleOutput[i] = rateValue;
+                
+            }
+            else{
+                rateValue = satConstant - SensorThrottleOutput[i];
+                if(rateValue > 16){
+                    rateValue = 16;
+                }
+                else if(rateValue < -std::numeric_limits<double>::infinity()){
+                    rateValue = -std::numeric_limits<double>::infinity();
+                }
+                SensorThrottleOutput[i] += rateValue;
+                
+            }
+            }
+        }
+        // to compute for switch 3
+        SensorAccFlagOutput[i] = HWTWideFlagOutput[i];
+        
+        // to compute for switch 4 
+        SensorHWTOutput[i] = TisWideHeadWayTimeCombined[i];
+        
+        // to compute for the switch 6 
+        SensorLeadCarVelocityOutput[i] = TISWideLeadVelocity[i];
+    }
+    
+    else{
+        // to compute for switch 1 
+        double constantSatSwitch {0};
+        SensorBrakeOutput[i] = saturate(TISLongBrakeOutput[i] ,0, 150 );
+        constantSatSwitch = TISLongBrakeOutput[i];
+        // to compute for switch 0
+        if (constantSatSwitch != 0){
+            SensorThrottleOutput[i] = saturate(TISLongThrottleOutput[i], 0, 100);
+        }
+        else{
+            double satConstant {0};
+            double rateValue{0};
+            satConstant = saturate(TISLongThrottleOutput[i], 0, 100);
+
+            for(int i{0}; i< std::numeric_limits<double>::infinity()  ; i++){
+                if(i =0){
+                rateValue = satConstant;
+                SensorThrottleOutput[i] = rateValue;
+                
+            }
+            else{
+                rateValue = satConstant - SensorThrottleOutput[i];
+                if(rateValue > 16){
+                    rateValue = 16;
+                }
+                else if(rateValue < -std::numeric_limits<double>::infinity()){
+                    rateValue = -std::numeric_limits<double>::infinity();
+                }
+                SensorThrottleOutput[i] += rateValue;
+                
+            }
+            }
+        }
+        // to compute for switch 3
+        SensorAccFlagOutput[i] = HWTLongFlagOutput[i];
+        //to compute for switch 4 
+        SensorHWTOutput[i] = TisLongHeadWayTimeCombined[i];
+        // to compute for switch 6
+        SensorLeadCarVelocityOutput[i] = TISlongLeadVelocity[i];
+        
+    }
+            
+    }          
+
+         // to compute the all switch input
+         double switchInput{0};
+         
+         //Tabulate limitation1 block
+         for(int i{0} ; i<maxDetectableObjects ; i++){
+             
+        // to compute the or block
+         double orBlockCon{0};
+         double condConstant{0};
+         double switchSevenCon{0};
+             
+         if(egoSystemInput && guiSwitchInput){
+             // to create a variable for the switch input
+             switchInput = 1`;
+         }
+         else{
+             switchInput = 0;
+         }
+         
+         
+         if( ( switchInput ==0) || ( velocity > (200/3.6)) || ( indicatorFlagInput != 0)){
+             orBlockCon =1 ;
+         }
+         
+         // to tabulate the cond constant
+
+         for(double i= 1/TimeStep ; i < std::numeric_limits<double>::infinity() ; i++){
+
+             if(i==0){
+                 // since initial condition of the integer delay is 0
+                 if( !orBlockCon ){
+                     condConstant = 1;
+                 }
+                 else{
+                     condConstant = 0;
+                 }
+                 delayConstantHistory[i] = orBlockCon;
+             }
+             else{
+                 //now to tabulte the output from the logical operator 3 that is with current value of the 
+                 if( !orBlockCon || !delayConstantHistory[i - 20*TimeStep]){
+                     condConstant = 1;
+                 }
+                 delayConstant[i] = orBlockCon;
+             }
+             
+         }
+         
+         
+         // to switch 1 
+         if(orBlockCon >0){
+             LimitationThrottleOutput[i] = throttleInput;
+             
+             // to compute switch 2 
+             LimitationAccFlagOutput[i] = 0;
+             
+             // compute switch 5
+             LimitationLeadCarVelocityOutput[i] = 0;
+             
+             //switch  7
+         // switch 7
+         if(condConstant != 0){
+             double rateValue {0};
+             for(int i{0} ; i< std::numeric_limits<int>::max() ; i++){
+                 if(i == 0){
+                     rateValue = brake;
+                     switchSevenCon = rateValue;
+                 }
+                 else{
+                     rateValue = brake-switchSevenCon;
+                     if(rateValue >150){
+                         rateValue = 150;
+                     }
+                     else if(rateValue < -150){
+                         rateValue = -150;
+                     }
+                     switchSevenCon +=rateValue;
+                 }
+             }
+             
+         }
+         else{
+             switchSevenCon = brake;
+         }
+             
+         }
+         else{
+             // switch 1
+             LimitationThrottleOutput[i] = SensorThrottleOutput[i];
+             // switch 2
+             LimitationAccFlagOutput[i] = SensorAccFlagOutput[i];
+             //switch 5
+             LimitationLeadCarVelocityOutput[i] = SensorLeadCarVelocityOutput[i];
+             // switch 7
+             if(condConstant != 0){
+                 double rateValue {0};
+                 for(int i{0} ; i< std::numeric_limits<int>::max() ; i++){
+                     if(i == 0){
+                         rateValue = SensorBrakeOutput[i];
+                         switchSevenCon = rateValue;
+                     }
+                     else{
+                         rateValue = SensorBrakeOutput[i]-switchSevenCon;
+                         if(rateValue >150){
+                             rateValue = 150;
+                         }
+                         else if(rateValue < -150){
+                             rateValue = -150;
+                         }
+                         switchSevenCon +=rateValue;
+                     }
+                 }
+                 
+             }
+             else{
+                 switchSevenCon = SensorBrakeOutput[i];
+             }
+             
+             
+         }
+      
+         // to tabulate the switch 4 output 
+         if(switchSevenCon >= 150/100){
+             LimitationBrakePressureOutput[i] = switchSevenCon;
+         }
+         else{
+             LimitationBrakePressureOutput[i] = 0;
+         }
+         
+         // the lower part of the block output 
+         double constantRelationalOperator{0};
+         if(HWTWideFlagOutput[i] >0){
+             if((30/velocity) ==SensorHWTOutput[i]){
+                 constantRelationalOperator = 1;
+             }
+             else{
+                 constantRelationalOperator =0;
+             }
+             
+         }
+         else{
+             if((150/velocity) == SensorHWTOutput[i]){
+                 constantRelationalOperator = 1;
+             }
+             else{
+                 constantRelationalOperator = 0;
+             }
+         }
+         
+         // to tabulate logical operator 1
+         if( orBlockCon|| constantRelationalOperator){
+             LimitationHWTOutput[i] = saturate(0, 0 ,2*HeadWayTime);
+             
+         }
+         else{
+             
+             LimitationHWTOutput[i] = saturate(SensorHWTOutput[i], 0 , 2*HeadWayTime);
+         }
+         }
+         // end of limitation 1 block
+         
+         // to tabulate limitation 2
+         for(int i{0} ; i<maxDetectableObjects ; i++){
+             
+  
+         // to compute the cond 1 output cond in the limitation 2
+         for(double i= 20* TimeStep ; i <std::numeric_limits<double>::infinity() ; i++){
+             std::vector <double>  delayConstantHistory(maxDetectableObjects);
+             if(i ==0){
+                 if(switchInput = 1){
+                     condLimitationTwo = 1;
+                 }
+                 else{
+                     condLimitationTwo = 0;
+                 }
+                 delayConstantHistory[i] = condLimitationTwo;
+             }
+             else{
+                 if( switchInput || delayConstantHistory[i-1]){
+                     condLimitationTwo= 1;
+                     delayConstantHistory[i] = condLimitationTwo;
+                 }
+                 else{
+                     condLimitationTwo = 0;
+                     delayConstantHistory[i] = condLimitationTwo;
+                 }
+             }
+         }
+         
+         if( LimitationAccFlagOutput[i] || (40>LimitationLeadCarVelocityOutput[i])){
+             orBlockLimitationTwo = 1;
+         }
+         else{
+             orBlockLimitationTwo = 0;
+         }
+         
+         
+         // to compute switch 1
+         if(orBlockLimitationTwo != 0){
+             // to compute switch 
+             if(condLimitationTwo != 0){
+                 // compute Limitation 2 output based on the conditions so far
+                 limitationTwoThrottleOutput[i] = LimitationThrottleOutput[i];
+                 limitationTwoBrakePressureOutput[i] = LimitationBrakePressureOutput[i];
+                 limitationTwoHWTOutput[i] = LimitationHWTOutput[i];
+                 limitationTwoACCFlagOutput[i] = LimitationAccFlagOutput[i];
+                 limitationTwoLeadCarVelocityOutput[i] = LimitationLeadCarVelocityOutput[i];
+                 
+                 
+             }
+             else{
+                 limitationTwoThrottleOutput[i] = throttleInput;
+                 limitationTwoBrakePressureOutput[i] = brake;
+                 limitationTwoACCFlagOutput[i] = 0;
+                 limitationTwoHWTOutput[i] = 0;
+                 limitationTwoLeadCarVelocityOutput[i] =0;
+                 
+             }
+             
+         }
+         else{
+             if(condLimitationTwo != 0){
+                 limitationTwoHWTOutput[i] = LimitationHWTOutput[i];
+                 limitationTwoACCFlagOutput[i] = LimitationAccFlagOutput[i];
+                 limitationTwoLeadCarVelocityOutput[i] = LimitationLeadCarVelocityOutput[i];
+                 // the brake and throttle input through a saturation block
+                 limitationTwoBrakePressureOutput[i] = saturate(brake , 0 , 150 );
+                 // to include rate limiter in the throttle output
+                 double rateValue{0};
+                 for( double i=20*TimeStep ; i <std::numeric_limits<double>::infinity() ; i++){
+                     if(i == 0){
+                         rateValue = throttleInput;
+                         limitationTwoThrottleOutput[i] = rateValue;
+                     }
+                     else{
+                         rateValue = throttleInput - limitationTwoThrottleOutput[i-1];
+                         if(rateValue > 150000){
+                             rateValue = 150000;
+                         }
+                         else if(rateValue < -150000){
+                             rateValue = -150000;
+                             
+                         }
+                         limitationTwoThrottleOutput[i] = limitationTwoThrottleOutput[i-1] + rateValue;
+                     }
+                 } 
+                 
+             }
+             else{
+                  limitationTwoThrottleOutput[i] = throttleInput;
+                 limitationTwoBrakePressureOutput[i] = brake;
+                 limitationTwoACCFlagOutput[i] = 0;
+                 limitationTwoHWTOutput[i] = 0;
+                 limitationTwoLeadCarVelocityOutput[i] =0;
+                 
+             }
+         }
+         
+       }
+// for the void defined class method 
+
+}

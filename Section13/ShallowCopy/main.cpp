@@ -30,10 +30,11 @@ public:
 // the constructor assigns the pointer a location in the heap to store the dynamic integer , therefore the pointer data points 
 // points to an integer location in the heap
 // the constructor also dereferences the pointer data and sets the value of the data that this pointer points to as d
-Shallow::Shallow(int d) {
-    data = new int;
-    *data = d;
-}
+Shallow::Shallow(int d)
+    {
+        data = new int;
+        *data = d;
+    }
 
 
 // note that this copy constructor basically just copies the pointer in this case the pointer being data
@@ -42,9 +43,11 @@ Shallow::Shallow(int d) {
 // therefore in the initialisation list as can be noted that the  data which in the initial constructor is a dynamic allocated memory for an integer is copied as the value of data
 // from the source which in this case would be a member of the class , data is a pointer and that is the same thing that will be copied with this pointer rather than the value data points to
 Shallow::Shallow(const Shallow &source) 
-    : data(source.data) {
+// in this case only the pointer is the one that is assiggned to new object 
+    : data(source.data) 
+    {
         cout << "Copy constructor  - shallow copy" << endl;
-}
+    }
 
 
 // destructor that is called when an object of the class is destroyed

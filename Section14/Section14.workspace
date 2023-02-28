@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <CodeLite_Workspace Name="Section14" Database="" Version="10.0.0">
-  <Project Name="Mystring-start" Path="Mystring-start/Mystring-start.project" Active="Yes"/>
+  <Project Name="Mystring-start" Path="Mystring-start/Mystring-start.project" Active="No"/>
   <Project Name="Mystring-copy-assignment" Path="Mystring-copy-assignment/Mystring-copy-assignment.project" Active="No"/>
-  <Project Name="Mystring-move-assignment" Path="Mystring-move-assignment/Mystring-move-assignment.project" Active="No"/>
+  <Project Name="Mystring-move-assignment" Path="Mystring-move-assignment/Mystring-move-assignment.project" Active="Yes"/>
   <Project Name="Mystring-operator-methods" Path="Mystring-operators/Mystring-operators.project" Active="No"/>
   <Project Name="Mystring-operator-functions" Path="Mystring-operator-functions/Mystring-operator-functions.project" Active="No"/>
   <Project Name="Mystring-insertion-extraction" Path="Mystring-insertion-extraction/Mystring-insertion-extraction.project" Active="No"/>

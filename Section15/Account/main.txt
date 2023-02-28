@@ -1,0 +1,118 @@
+int main() {
+    AccountManager::instance().registerAccountType<Account>("Account");// note by that with this AccountManager::instance() creates an object by singleton of type AccountManager. the registerAccountType<Account>("Account") just adds this type of Account into the Map 
+    AccountManager::instance().registerAccountType<FixedAccount>("FixedAccount"); 
+    AccountManager::instance().registerAccountType<CheckingAccount>("CheckingAccount"); 
+    AccountManager::instance().registerAccountType<SavingAccount>("SavingAccount"); 
+    
+    std::unique_ptr<Account> ptr = AccountManager::instance().createAccount("FixedAccount");
+    
+    
+    std::vector <Account*> classVec;// classVec that holds pointers of  type Account 
+    // member of checking class
+    // to create a 
+    classVec.push_back(new  Account("Allan" , 600, 30));
+    // member of class saving account 
+    classVec.push_back(new  SavingAccount("Boris" , 13700, 20, 70000));
+    // member of fixed amount 
+    classVec.push_back(new  FixedAccount("gunther" , 122300, 19, 300022));
+    classVec.push_back(new CheckingAccount(" mahatma " , 12748, 77 , 739423));
+    // to create move and copy constructors for both this l values as well as r value objects that are temporary
+    std::string fileName = "C:\\Users\\25479\\Documents\\doc3.txt";
+
+    
+    { 
+        std::ofstream accountStream{fileName}; // output file stream called account stream
+        for(std::size_t i{0} ; i<classVec.size() ; i++)
+        {
+            classVec[i]->save(accountStream);
+            classVec[i]->save( std::cout ); // saving to the cout stream
+        }
+        
+        for(auto &item : classVec)
+        {
+            delete item;
+            item =nullptr;
+        }
+        
+        classVec.clear();
+        // check if its open 
+        if(accountStream.is_open())
+        {
+            accountStream.close();
+        }
+    }
+    
+    loadAccountsFromFile(fileName);
+    
+//    auto accountPtr = accountPointer("Alex " , 37000, 56);
+    
+    std::vector <std::unique_ptr<Account>> accountVec ;
+//    accountVec.push_back(std::move(accountPtr));
+    // to make accounts of other types to show the dynamic polymorphism
+    accountVec.push_back(std::make_unique<SavingAccount>("john" , 123700, 27, 76000));
+    accountVec.push_back(std::make_unique<FixedAccount>("elvis" , 12370, 23, 96000));
+    accountVec.push_back(std::make_unique<CheckingAccount>("kayman" , 42370, 24, 26000));
+    
+    std::unique_ptr<Account> accountptr1 =std::make_unique<FixedAccount>("Alice" , 43898, 23);
+    accountVec.push_back(std::move(accountptr1));
+    
+    for(const auto &account : accountVec)
+    {
+        std::cout<<*account;
+       // account->printDetails();
+        //account->withdraw(1000);
+    }
+    return 0;
+}
+
+/*
+return a unique pointer create method should return a unique pointer 
+ * exception handling 
+ * better method than the getline() for reading and writing to stream 
+*/
+
+
+auto& accountCreatorManager = AccountCreatorManager::instance();
+    std::unique_ptr<Account> account11 =accountCreatorManager.createAccount("Account");
+    std::unique_ptr<Account> account22 =accountCreatorManager.createAccount("FixedAccount");
+    std::unique_ptr<Account> account33 =accountCreatorManager.createAccount("SavingAccount");
+    std::unique_ptr<Account> account44 =accountCreatorManager.createAccount("CheckingAccount");
+    
+    // note by that accounts so far created are unique pointers to the varied types of Accounts
+    // set name for associated accounts 
+    account11->setName("First Account");
+    account22->setName("First Fixed Account");
+    account11->setName("First Saving Account");
+    account11->setName("First Checking Account");
+    
+    //set age for associated accounts 
+    account11->setAge(11);
+    account22->setAge(22);
+    account33->setAge(33);
+    account44->setAge(44);
+    
+    //set balance 
+    account11->setBalance(11000);
+    account22->setBalance(22000);
+    account33->setBalance(33000);
+    account44->setBalance(44000);
+    
+    //to access the methods now in the account manager 
+    std::vector<std::unique_ptr<Account>> accountManagerCreatorVec;
+    std::vector<std::unique_ptr<Account>>::iterator accountManagerIterator;
+    
+    // to add the vectors 
+    accountManagerCreatorVec.push_back(std::move(account11));
+    accountManagerCreatorVec.push_back(std::move(account22));
+    accountManagerCreatorVec.push_back(std::move(account33));
+    accountManagerCreatorVec.push_back(std::move(account44));
+    
+    
+    for(accountManagerIterator = accountManagerCreatorVec.begin() ; accountManagerIterator != accountManagerCreatorVec.end() ; accountManagerIterator++)
+    {
+        accountManager.addAccount(*accountManagerIterator);
+        accountManager.saveAccount("C:\\Users\\25479\\Documents\\doc3.txt" , *accountManagerIterator);
+       
+    }
+    
+   
